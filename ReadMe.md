@@ -10,10 +10,10 @@
 3. 设置边界条件 
     3.1 格式:[坐标X, 坐标Y, 幅度A] 
     3.2 当幅度设"0"，相当于墙，可以模拟衍射 
-<img1.干涉演示> 
-<img2.衍涉演示> 
-![image](https://github.com/LiGuer/Ligu_wave-simulation/blob/master/img/001.png) 
-![image](https://github.com/LiGuer/Ligu_wave-simulation/blob/master/img/img002.png) 
+<img1.干涉演示>   
+<img2.衍涉演示>   
+![image](https://raw.githubusercontent.com/LiGuer/Ligu_wave-simulation/master/img/001.png) 
+![image](https://raw.githubusercontent.com/LiGuer/Ligu_wave-simulation/master/img/img2.png) 
 
 
 
