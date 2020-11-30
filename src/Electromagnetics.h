@@ -1,5 +1,14 @@
 #ifndef ELECTROMAGNETICS_H
 #define ELECTROMAGNETICS_H
+#include "../LiGu_AlgorithmLib/Mat.h"
+#include "../LiGu_AlgorithmLib/Tensor.h"
+/*----------------[ ElecmagnCell 电磁场基本结构体 ]----------------*/
+struct ElecmagnCell
+{
+	double E[3] = { 0 }, H[3] = { 0 };			// 电场,磁场(三维)
+	double sigmaE = 0, sigmaM = 0;				// 电导率,磁导率	// J =σE  Jm =σm H 
+	double epsilon = 8.85E-12, mu = 1.2567E-6;	// ε介电常数,μ磁导系数 // D =εE  B =μH
+};
 /*----------------[ ComputationalElectromagnetics -  FDTD ]----------------
 *	[方程]: 麦克斯韦方程组 (旋度那两个)
 	[1] ▽ × H = ∂D/∂y + J
@@ -10,13 +19,7 @@
 		∂Ez/∂y - ∂Ey/∂z =  - μ∂Hx/∂t - σHx
 		∂Ex/∂z - ∂Ez/∂x =  - μ∂Hy/∂t - σHy
 		∂Ey/∂x - ∂Ex/∂y =  - μ∂Hz/∂t - σHz
-**--------------------------------------*/
-struct ElecmagnCell
-{
-	double E[3] = { 0 }, H[3] = { 0 };			// 电场,磁场(三维)
-	double sigmaE = 0, sigmaM = 0;				// 电导率,磁导率	// J =σE  Jm =σm H 
-	double epsilon = 8.85E-12, mu = 1.2567E-6;	// ε介电常数,μ磁导系数 // D =εE  B =μH
-};
+**----------------------------------------------------------------------*/
 void Electromagnetics(Tensor<ElecmagnCell>& Map, void (*setBoundaryValue) (Tensor<ElecmagnCell>& x, double time),
 	double deltaTime, double deltaDim[], int EndTimes) {
 	Tensor<ElecmagnCell> Mapprev(Map);

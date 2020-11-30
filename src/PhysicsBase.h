@@ -1,44 +1,37 @@
 #ifndef PHYSICSBASE_H
 #define PHYSICSBASE_H
-#include "Ligu_Graphics/Mat.h"
-/******************************************************************************
-*                    Particle	ÖÊµã
-******************************************************************************/
+#include "../LiGu_AlgorithmLib/Mat.h"
 typedef Mat<double> Vector;
+/******************************************************************************
+*                    Particle	è´¨ç‚¹
+******************************************************************************/
 class Particle {
 public:
-	Vector r = Vector(3, 1), v = Vector(3, 1), a = Vector(3, 1);//Î»ÖÃ//ËÙ¶È
-	double mass = 0, eleccharge = 0;				//ÖÊÁ¿
-	/*---------------- ¶¯Á¿ ----------------*/
-	void Momentum(Vector& ans) {
-		ans.mult(mass, v);
-	}
+	Vector r{ 3, 1 }, v{ 3, 1 }, a{ 3, 1 };					//ä½ç½® é€Ÿåº¦
+	double mass = 0;								//è´¨é‡
+	void Momentum(Vector& ans) { ans.mult(mass, v); }	//åŠ¨é‡ 
 };
 /******************************************************************************
-*                    RigidBody	¸ÕÌå
+*                    RigidBody	åˆšä½“
 ******************************************************************************/
-class RigidBody:public Particle
-{
+class RigidBody:public Particle{
 public:
-	Vector Angle = Vector(3, 1), AngularVeloc = Vector(3, 1), AngularAccele = Vector(3, 1);//½Ç¶È//½ÇËÙ¶È//½Ç¼ÓËÙ¶È
-	Mat<double> Inertia = Mat<double>(3, 3);		//×ª¶¯¹ßÁ¿
-	/*---------------- ½Ç¶¯Á¿ ----------------*/
-	void AngularMomentum(Vector& ans) {
-		ans.mult(Inertia, AngularVeloc);
-	}
+	Vector Angle{ 3, 1 }, AngularVeloc{ 3, 1 }, AngularAccele{ 3, 1 };	//è§’åº¦//è§’é€Ÿåº¦//è§’åŠ é€Ÿåº¦
+	Mat<double> Inertia{ 3, 3 };				//è½¬åŠ¨æƒ¯é‡
+	void AngularMomentum(Vector& ans) { ans.mult(Inertia, AngularVeloc); }//è§’åŠ¨é‡
 
 };
 /******************************************************************************
-*                    PhysicsBase	ÎïÀíÑ§»ùÀà
+*                    PhysicsBase	ç‰©ç†å­¦åŸºç±»
 ******************************************************************************/
 class PhysicsBase
 {
 public:
-	/*---------------- ³£Êı ----------------*/
-	const double pi = 3.141592653589;				//Ô²ÖÜÂÊ
-	const double G = 6.67408E-11;					//ÍòÓĞÒıÁ¦³£Êı
-	const double e = 1.602176565E-19;				//µç×ÓµçºÉ
-	const double epsilon0 = 8.85418781762E-12;		//Õæ¿ÕµçÈİÂÊ
-	const double mu0 = 4 * pi * 1E-7;				//Õæ¿Õ´Åµ¼ÂÊ
+	/*---------------- ç‰©ç†å¸¸æ•° ----------------*/
+	const double pi = 3.141592653589,					//åœ†å‘¨ç‡
+					G = 6.67408E-11,					//ä¸‡æœ‰å¼•åŠ›å¸¸æ•°
+					e = 1.602176565E-19,				//ç”µå­ç”µè·
+					epsilon0 = 8.85418781762E-12,		//çœŸç©ºç”µå®¹ç‡
+					mu0 = 4 * pi * 1E-7;				//çœŸç©ºç£å¯¼ç‡
 };
 #endif

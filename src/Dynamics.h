@@ -3,15 +3,14 @@
 #include <stdlib.h>
 #include <math.h>
 #include "PhysicsBase.h"
-#include "Ligu_Graphics/Mat.h"
+#include "../LiGu_AlgorithmLib/Mat.h"
 /******************************************************************************
-*                    Coordinate	×ø±êÏµ
+*                    Coordinate	åæ ‡ç³»
 ******************************************************************************/
-class Coordinate
-{
+class Coordinate{
 public:
-	Vector r = Vector(3, 1); Vector v = Vector(3, 1); Vector a = Vector(3, 1);
-	Vector Angle = Vector(3, 1), AngularVeloc = Vector(3, 1), AngularAccele = Vector(3, 1);//½Ç¶È//½ÇËÙ¶È//½Ç¼ÓËÙ¶È
+	Vector r{ 3, 1 }, v{ 3, 1 }, a{ 3, 1 };					//ä½ç½® é€Ÿåº¦
+	Vector Angle{ 3, 1 }, AngularVeloc{ 3, 1 }, AngularAccele{ 3, 1 };//è§’åº¦//è§’é€Ÿåº¦//è§’åŠ é€Ÿåº¦
 	void play(double dt) {
 		for (int dim = 0; dim < 3; dim++) {
 			r[dim] += v[dim] * dt;
@@ -22,84 +21,27 @@ public:
 	}
 };
 /******************************************************************************
-*                    Dynamics	Á¦Ñ§Àà
+*                    Dynamics	åŠ›å­¦ç±»
 ******************************************************************************/
-class Dynamics : public PhysicsBase
-{
+class Dynamics : public PhysicsBase{
 public:
-	/*---------------- º¯Êı ----------------*/
-	void play(Particle& point, double dt) {
-		for (int dim = 0; dim < 3; dim++) {
-			point.v[dim] += point.a[dim] * dt;//·´Ò»ÏÂÎªÊ²Ã´²»ĞĞ£¿
-			point.r[dim] += point.v[dim] * dt;
-		}
-	}
+	/*---------------- å‡½æ•° ----------------*/
 	void play(Particle* point[], int n, double dt) {
 		for (int i = 0; i < n; i++) {
 			for (int dim = 0; dim < 3; dim++) {
-				point[i]->v[dim] += point[i]->a[dim] * dt;//·´Ò»ÏÂÎªÊ²Ã´²»ĞĞ£¿
+				point[i]->v[dim] += point[i]->a[dim] * dt;//åä¸€ä¸‹ä¸ºä»€ä¹ˆä¸è¡Œï¼Ÿ
 				point[i]->r[dim] += point[i]->v[dim] * dt;
 			}
 		}
 	}
-	/*---------------- Ù¤ÀûÂÔ×ø±ê±ä»» ----------------*/
-	void CoordinateTrans(Particle& point, Coordinate& coord, Particle& ans) {
-		for (int dim = 0; dim < 3; dim++) {
-			ans.r[dim] = point.r[dim] - coord.r[dim];
-			ans.v[dim] = point.r[dim] - coord.v[dim];
-			ans.a[dim] = point.r[dim] - coord.a[dim];
-		}
-		Mat<double> mat;
-		mat.E(3);
-		mat[0 * mat.cols + 0] = cos(coord.Angle[0]); mat[0 * mat.cols + 1] = -1 * sin(coord.Angle[0]);
-		mat[1 * mat.cols + 0] = sin(coord.Angle[0]); mat[1 * mat.cols + 1] = cos(coord.Angle[0]);
-		ans.r.mult(mat, ans.r);
-	}
-	Particle* MassCentre(Particle* point[], int n);					//ÇóÖÊĞÄ
-	/*---------------- ¶şÌåÒıÁ¦¸÷Öá³¤¶È ----------------
-	A: °ë³¤Öá		C: ½¹¾à
-	½Ç¶¯Á¿ L = m r v¦È
-	                     1     2    G M m
-	ÄÜÁ¿  E = Ek + Ep = --- m v  + -------
-	                     2            r
-	²ÎÁ¿	
-	** ---------------------------------------- */
-	void TwobodyGravitationAxis(Particle& PM, Particle& Pm, double& A, double& C) {
-		double M = PM.mass, m = Pm.mass, r2 = 0, v2 = 0;						//r: PM Pm¾àÀë//v: PM PmÏà¶ÔËÙ¶È
-		for (int dim = 0; dim < 3; dim++) {
-			r2 += (PM.r[dim] - Pm.r[dim]) * (PM.r[dim] - Pm.r[dim]);
-			v2 += (PM.v[dim] - Pm.v[dim]) * (PM.v[dim] - Pm.v[dim]);
-		}
-		double r = sqrt(r2), vtheta = sqrt(v2);					//bug:vtheta
-		double L = m * r * vtheta;								//L:½Ç¶¯Á¿
-		double E = 1.0 / 2 * m * v2 - G * M * m / r;			//E:ÄÜÁ¿
-		double p = (r2 * vtheta * vtheta) / (G * M);
-		double epsi2 = 1 + (2 * E * p) / (G * M * m);
-		A = p / (1 - epsi2);
-		C = sqrt(epsi2) * A;
-	}
-	/*---------------- ¶şÌåÒıÁ¦Ğı×ªÖÜÆÚ ----------------
-	¿¼ÂÇm¶ÔMµÄÒıÁ¦Ó°Ïì£¬ÓĞ
-	Ô¼»¯ÖÊÁ¿: ¦Ìm = (M m) / (M +m)
-	Fm = ¦Ìm am
-	¼´
-		 (M + m) m   ^     ->
-	- G ------------ r = m am
-			 r^2
-				   3
-	T = 2¦Ğ sqrt( A  / G (M + m) )
-				 3    2                              2
-	¿ªÆÕÀÕ¶¨ÂÉ: A  / T  = k ,  ÆäÖĞ k = (G M) / (4¦Ğ ) * (1 + m / M)
-	** ---------------------------------------- */
-	double TwobodyGravitationPeriod(Particle& M, Particle& m) {
-		double A, C;
-		TwobodyGravitationAxis(M, m, A, C);
-		double Omega = sqrt(G * (M.mass + m.mass) / (A * A * A));		//Ğı×ªÖÜÆÚµÄÆ½¾ù½ÇËÙ¶È
-		return Omega;
-	}
-	/*---------------- ÍòÓĞÒıÁ¦ ----------------*/
-	void Gravitation(Particle* point[], int n, Vector& position, Vector& acceleration);	//ÍòÓĞÒıÁ¦
-	double GravitatePotential(Particle point[], int n, Vector& position);	//ÒıÁ¦ÊÆ
-	double CentrifugalPotential(double Omega, Vector& center, Vector& position);	//ÒıÁ¦ÊÆ
+	void CoordinateTrans(Particle& point, Coordinate& coord, Particle& ans);		//ä¼½åˆ©ç•¥åæ ‡å˜æ¢
+	Particle* MassCentre(Particle* point[], int n);									//è´¨å¿ƒ
+	/*----------------[ ä¸‡æœ‰å¼•åŠ› ]----------------*/
+	void Gravitation(Particle* point[], int n, Vector& position, Vector& acceleration);	//ä¸‡æœ‰å¼•åŠ›
+	double GravitatePotential(Particle point[], int n, Vector& position);			//å¼•åŠ›åŠ¿
+	void TwobodyGravitationAxis(Particle& PM, Particle& Pm, double& A, double& C);	//äºŒä½“å¼•åŠ›å„è½´é•¿åº¦
+	double TwobodyGravitationPeriod(Particle& M, Particle& m);						//äºŒä½“å¼•åŠ›æ—‹è½¬å‘¨æœŸ
+
+	double CentrifugalPotential(double Omega, Vector& center, Vector& position);	//ç¦»å¿ƒåŠ¿
 };
 #endif
