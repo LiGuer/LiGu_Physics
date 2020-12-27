@@ -6,6 +6,7 @@ void Universe::InitStars() {
 		double v[] = { 0,0,0 };
 		Stars[StarNum].mass = 1.9891E30;
 		Stars[StarNum].color = 0xFF0000;
+		Stars[StarNum].R = 6.955E8;
 		for (int i = 0; i < 3; i++) {
 			Stars[StarNum].r[i] = r[i];	Stars[StarNum].v[i] = v[i];
 		}

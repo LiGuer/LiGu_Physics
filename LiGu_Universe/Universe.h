@@ -28,6 +28,7 @@ public:
 	Star Stars[MaxStars];
 	int StarNum = 0;
 	Plot plot;
+	int times = 0;
 	/*----------------[  ]----------------*/
 	Universe() {
 		plot.setAxisRange(-1E12, -1E12, 1E12, 1E12);
@@ -40,13 +41,13 @@ public:
 	void Simulation() {
 		GravitationSimulation();
 		play();
+		if (times++ > 3600) { DrawIt(); times = 0; }
 	}
-	void showIt() {
+	void DrawIt() {
 		for (int i = 0; i < StarNum; i++) {
 			plot.g->PaintColor = Stars[i].color;
 			plot.plotCircle(Stars[i].r[0], Stars[i].r[1], Stars[i].R);
 		}
-		plot.g->PicWrite("D:/LIGU.ppm");
 	}
 	void play() {
 		for (int i = 0; i < StarNum; i++) {

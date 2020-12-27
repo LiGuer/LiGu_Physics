@@ -5,6 +5,6 @@ int main() {
 	int time = 0;
 	while (true) {
 		universe.Simulation();
-		if (time++ % 10000 == 0)universe.showIt();
+		if (time++ % 100000 == 0)universe.plot.g->PicWrite("D:/LIGU.ppm");
 	}
 }
