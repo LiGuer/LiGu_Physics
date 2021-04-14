@@ -2,6 +2,30 @@
 #define ELECTROMAGNETICS_H
 #include "../LiGu_AlgorithmLib/Mat.h"
 #include "../LiGu_AlgorithmLib/Tensor.h"
+/*----------------[ Electrostatic Field 静电场 ]----------------
+*	[定义]: 
+*	[静电场 麦克斯韦方程组]: ▽·E = ρ/ε0    ▽×E = 0
+	[电势]: E = -▽φ
+		=>	▽²φ = -ρ/ε0		Poisson's方程
+		当ρ=0时, ▽²φ = 0	 Laplace's方程
+		[三维直角坐标系]: ∂²φ/∂x² + ∂²φ/∂y² + ∂²φ/∂z² = -1/ε0·ρ(x,y,z)
+	[算法]: 即 解Poisson's方程，格林函数，得 φ(r) = - 4π/ε0 ∫∫∫ f(rt) / |r-rt| d³rt
+		//Tensor<double>* PoissonEquation(Mat<double>st, Mat<double>ed, Mat<double> delta, double (*f) (Mat<double>& x));
+	[静电场唯一性定理]:
+		对于各种边界条件，Poisson's方程可能有许多种解，但每个解的梯度相同. 
+		静电场情况下, 意味着在边界条件下的满足泊松方程的势函数，所解得的电场确定且唯一.
+**----------------------------------------------------------------------*/
+
+/*----------------[ Magnetostatic Field 恒磁场 ]----------------
+*	[定义]: 
+*	[恒磁场 麦克斯韦方程组]: ▽·H = 0    ▽×H = 4π/c·J
+	[磁矢势]: H = -▽×A		(▽·A = 0)
+		=>	▽²A = -4π/c·J		Poisson's方程
+	[算法]: 即 解Poisson's方程，格林函数, 得 A = 1/c ∫∫∫ J/r dV
+		//Tensor<double>* PoissonEquation(Mat<double>st, Mat<double>ed, Mat<double> delta, double (*f) (Mat<double>& x));
+**----------------------------------------------------------------------*/
+
+
 /*----------------[ ElecmagnCell 电磁场基本结构体 ]----------------*/
 struct ElecmagnCell
 {
