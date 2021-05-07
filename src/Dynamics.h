@@ -90,10 +90,9 @@ double MassCentre(Mat<>* r, Mat<>* v, double* m, int N, Mat<>& rc, Mat<>& vc) {
 *	U = ∫  ω  * r dr = - --- ω  R
 *	      R                 2
 *************************************************************************************************/
-double CentrifugalPotential(double Omega, Mat<>& center, Mat<>& position) {
+double CentrifugalPotential(double angularVeloc, Mat<>& center, Mat<>& position) {
 	Mat<> tmp;
-	double r = tmp.sub(center, position).norm();
-	return  -pow(Omega * r, 2) / 2;
+	return  -pow(angularVeloc * tmp.sub(center, position).norm(), 2) / 2;
 }
 /*************************************************************************************************
 *							Gravitation	万有引力
@@ -115,11 +114,10 @@ static const double G = 6.67408E-11;
 void GravitationAcceleration(Mat<>* r, Mat<>* v, double* mass, Mat<>* accele, int N) {
 	Mat<> dr;
 	for (int i = 0; i < N; i++) {
-		accele[i].zero();
+		accele[i].zero(r[0]);
 		for (int j = 0; j < N; j++) {
 			if (j == i || mass[j] == 0) continue;
-			double s = dr.sub(r[i], r[j]).norm();
-			accele[i] += (dr *= (-G * mass[j] / pow(s, 3)));
+			accele[i] += (dr *= (-G * mass[j] / pow(dr.sub(r[i], r[j]).norm(), 3)));
 		}
 	}
 }
@@ -139,18 +137,20 @@ double* GravitatePotential(Mat<>* r, double* mass, int N) {
 *	A: 半长轴		C: 焦距
 *	角动量 L = m r vθ
 *	能量  E = Ek + Ep = 1/2 m v²  + G M m / r
-** ----------------------------------------*/
-void TwobodyGravitationAxis(Mat<>& Mr, Mat<>& mr, Mat<>& Mv, Mat<>& mv, double M, double m, double& A, double& C) {
+** ------------------------------------------------*/
+void TwobodyGraviAxis(Mat<>& Mr, Mat<>& mr, Mat<>& Mv, Mat<>& mv, double M, double m, double& A, double& C) {
 	double r2 = 0, v2 = 0;									//r: PM Pm距离//v: PM Pm相对速度
-	for (int dim = 0; dim < 3; dim++) {
+	for (int dim = 0; dim < Mr.size(); dim++) {
 		r2 += pow(Mr[dim] - mr[dim], 2);
 		v2 += pow(Mv[dim] - mv[dim], 2);
 	}
-	double r = sqrt(r2), vtheta = sqrt(v2);					//bug:vtheta
-	double L = m * r * vtheta;								//L:角动量
-	double E = 1.0 / 2 * m * v2 - G * M * m / r;			//E:能量
-	double p = (r2 * vtheta * vtheta) / (G * M);
-	double epsi2 = 1 + (2 * E * p) / (G * M * m);
+	double 
+		r		= sqrt(r2), 
+		vtheta	= sqrt(v2),
+		L		= m * r * vtheta,							//L:角动量
+		E		= 1.0 / 2 * m * v2 - G * M * m / r,			//E:能量
+		p		= (r2 * vtheta * vtheta) / (G * M),
+		epsi2	= 1 + (2 * E * p) / (G * M * m);
 	A = p / (1 - epsi2);
 	C = sqrt(epsi2) * A;
 }
@@ -166,10 +166,10 @@ Fm = μm am
 T = 2π sqrt( A  / G (M + m) )
 			 3    2                              2
 开普勒定律: A  / T  = k ,  其中 k = (G M) / (4π ) * (1 + m / M)
-** ----------------------------------------*/
-double TwobodyGravitationPeriod(Mat<>& Mr, Mat<>& mr, Mat<>& Mv, Mat<>& mv, double M, double m) {
+** ------------------------------------------------*/
+double TwobodyGraviPeriod(Mat<>& Mr, Mat<>& mr, Mat<>& Mv, Mat<>& mv, double M, double m) {
 	double A, C;
-	TwobodyGravitationAxis(Mr, mr, Mv, mv, M, m, A, C);
+	TwobodyGraviAxis(Mr, mr, Mv, mv, M, m, A, C);
 	return sqrt(G * (M + m) / (A * A * A));		//旋转周期的平均角速度
 } 
 }
