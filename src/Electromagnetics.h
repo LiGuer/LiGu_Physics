@@ -1,7 +1,7 @@
 #ifndef ELECTROMAGNETICS_H
 #define ELECTROMAGNETICS_H
-#include "../LiGu_AlgorithmLib/Mat.h"
-#include "../LiGu_AlgorithmLib/Tensor.h"
+#include "../../LiGu_AlgorithmLib/Mat.h"
+#include "../../LiGu_AlgorithmLib/Tensor.h"
 /*----------------[ Electrostatic Field 静电场 ]----------------
 *	[定义]: 
 *	[静电场 麦克斯韦方程组]: ▽·E = ρ/ε0    ▽×E = 0
