@@ -11,6 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 #include "../../LiGu_AlgorithmLib/Mat.h"
+#include "Calculus.h"
 #include <functional>
 namespace Dynamics {
 /*************************************************************************************************
@@ -26,14 +27,17 @@ namespace Dynamics {
 		y[n+1] = y[n] + dt/6·(k1 + 2·k2 + 2·k3 + k4)
 -------------------------------------------------------------------------------------------------
 *	[Example]: //N连杆摆动
+		double U(Mat<>& x) {
+			double sum = 0;
+			for (int i = 0; i < x.size(); i++) sum += (x.size() - i) * cos(x[i]);
+			return -10.0 / 2 * (sum);
+		}
 		Mat<> angle(10), angleVeloc(10); angle.fill(PI / 2);
 		Dynamics::run(
-			angle, angleVeloc, 0.01, 1, 
+			angle, angleVeloc, 0.01, 1,
 			[](Mat<>& x, Mat<>& ddx){
 				Dynamics::Lagrange(
-					x, ddx,
-					[](int index) { return 1 / 4.0; },
-					[](Mat<>& x, int index) { return 10 / 2.0 * (10 - index) * sin(x[index]); }
+					x, ddx, [](int index) { return 1 / 4.0; }, U
 				);
 			}
 		);
@@ -122,14 +126,16 @@ void run(Mat<>* r, Mat<>* v, double* mass, int N, double dt, int enpoch,
 *			L = T - U
 *	x: 广义坐标
 *************************************************************************************************/
-Mat<>& Lagrange(
-	Mat<>& x, Mat<>& ddx, double(*d_pL_pdx_dt)(int i), double(*pU_px)(Mat<>& x, int i)
-) {
+Mat<>& Lagrange(Mat<>& x, Mat<>& dx, Mat<>& ddx, double(*T)(Mat<>& dx), double(*U)(Mat<>& x)) {
 	for (int i = 0; i < x.size(); i++)
-		ddx[i] = pU_px(x, i) / d_pL_pdx_dt(i);
+		ddx[i] = Calculus::PartiDeriv(x, i, 1E-9, U) / 1.001;//####
 	return ddx;
 }
-
+Mat<>& Lagrange( Mat<>& x, Mat<>& ddx, double(*d_pL_pdx_dt)(int i), double(*U)(Mat<>& x)) {
+	for (int i = 0; i < x.size(); i++)
+		ddx[i] = Calculus::PartiDeriv(x, i, 1E-9, U) / d_pL_pdx_dt(i);
+	return ddx;
+}
 /*************************************************************************************************
 *							MassCentre	质心
 *	[定义]:
