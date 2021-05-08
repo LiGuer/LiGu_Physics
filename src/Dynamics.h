@@ -27,23 +27,24 @@ namespace Dynamics {
 		y[n+1] = y[n] + dt/6·(k1 + 2·k2 + 2·k3 + k4)
 -------------------------------------------------------------------------------------------------
 *	[Example]: //N连杆摆动
-		double U(Mat<>& x) {
-			double sum = 0;
-			for (int i = 0; i < x.size(); i++) sum += (x.size() - i) * cos(x[i]);
-			return -10.0 / 2 * (sum);
-		}
 		Mat<> angle(10), angleVeloc(10); angle.fill(PI / 2);
 		Dynamics::run(
 			angle, angleVeloc, 0.01, 1,
-			[](Mat<>& x, Mat<>& ddx){
+			[](Mat<>& x, Mat<>& dx, Mat<>& ddx) {
 				Dynamics::Lagrange(
-					x, ddx, [](int index) { return 1 / 4.0; }, U
+					x, dx, ddx,
+					[](Mat<>& dx) {return 1.0 / 8 * (dx.dot(dx)); },
+					[](Mat<>&  x) {
+						double sum = 0;
+						for (int i = 0; i < x.size(); i++) sum += (x.size() - i) * cos(x[i]);
+						return -10.0 / 2 * (sum);
+					}
 				);
 			}
 		);
 *************************************************************************************************/
 /*----------------[ 运动 ]----------------*/
-void run(Mat<>& x, Mat<>&dx, double dt, int enpoch, void(*AcceleFun)(Mat<>& x, Mat<>& ddx)) {
+void run(Mat<>& x, Mat<>&dx, double dt, int enpoch, void(*AcceleFun)(Mat<>& x, Mat<>& dx, Mat<>& ddx)) {
 	Mat<>
 		 xTmp	(x),
 		dxTmp	(dx),
@@ -51,7 +52,7 @@ void run(Mat<>& x, Mat<>&dx, double dt, int enpoch, void(*AcceleFun)(Mat<>& x, M
 		kix, kidx, kx, kdx,tmp;
 	while (enpoch--) {
 		for (int k = 0; k < 4; k++) {
-			AcceleFun(xTmp, ddx);
+			AcceleFun(xTmp, dxTmp, ddx);
 			kidx = ddx;
 			kix  = dxTmp;
 			if (k == 0) {
@@ -128,12 +129,7 @@ void run(Mat<>* r, Mat<>* v, double* mass, int N, double dt, int enpoch,
 *************************************************************************************************/
 Mat<>& Lagrange(Mat<>& x, Mat<>& dx, Mat<>& ddx, double(*T)(Mat<>& dx), double(*U)(Mat<>& x)) {
 	for (int i = 0; i < x.size(); i++)
-		ddx[i] = Calculus::PartiDeriv(x, i, 1E-9, U) / 1.001;//####
-	return ddx;
-}
-Mat<>& Lagrange( Mat<>& x, Mat<>& ddx, double(*d_pL_pdx_dt)(int i), double(*U)(Mat<>& x)) {
-	for (int i = 0; i < x.size(); i++)
-		ddx[i] = Calculus::PartiDeriv(x, i, 1E-9, U) / d_pL_pdx_dt(i);
+		ddx[i] = Calculus::PartiDeriv(x, i, 1E-9, U) / Calculus::PartiDeriv2(dx, i, 1E-4, T);
 	return ddx;
 }
 /*************************************************************************************************

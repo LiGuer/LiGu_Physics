@@ -9,12 +9,25 @@ namespace Calculus {
 #define PI 3.141592653589
 /******************************************************************************
 *                    偏导数
+*	[定义]:
+		偏导: ∂f/∂x_i = [ f(..,xi+Δxi,..) -  f(..,xi-Δxi,..) ] / (2 Δxi)
+		二阶偏导:
+			∂²f/∂x_i² = [ f'(..,xi+Δxi,..) -  f'(..,xi,..) ] / Δxi
+					  = f(..,xi+2Δxi) - f'(..,x) - f'(..,xi+Δxi) + f'(..,xi-Δxi)
 ******************************************************************************/
 double PartiDeriv(Mat<>& x, int index, double dx, double(*func)(Mat<>& x)) {
 	Mat<> xt = x;
 	xt[index] += dx;		double t1 = func(xt);
 	xt[index] -= 2 * dx;	double t2 = func(xt);
 	return (t1 - t2) / (2 * dx);
+}
+double PartiDeriv2(Mat<>& x, int index, double dx, double(*func)(Mat<>& x)) {
+	Mat<> xt = x;
+	xt[index] += 2 * dx;	double t1 = func(xt);
+	xt[index] -= 2 * dx;	double t2 = func(xt);
+	xt[index] += dx;		double t3 = func(xt);
+	xt[index] -= 2 * dx;	double t4 = func(xt);
+	return (t1 - t2 - t3 + t4) / (2 * dx * dx);
 }
 /******************************************************************************
 *                    解微分方程: Runge Kutta 方法
