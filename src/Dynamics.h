@@ -11,15 +11,68 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 #include "../../LiGu_AlgorithmLib/Mat.h"
+#include <functional>
 namespace Dynamics {
 /*************************************************************************************************
 *							运动
 *	[算法]: Runge Kutta
-		y[n+1] = y[n] + h/6·(k1 + 2·k2 + 2·k3 + k4)
+*	[公式]:           ->   ->       ->      ->
+		对于初值问题: y' = f(t, y)	y(t0) = y0
+		y[n+1] = y[n] + dt/6·(k1 + 2·k2 + 2·k3 + k4)
+		k1 = f(tn , yn)						//区间开始斜率
+		k2 = f(tn + dt/2 , yn + dt/2·k1)	//区间中点斜率,通过欧拉法采用k1决定y在tn+dt/2值
+		k3 = f(tn + dt/2 , yn + dt/2·k2)	//区间中点斜率,采用k2决定y值
+		k4 = f(tn + dt ,   yn + dt  ·k3)	//区间终点斜率
+		y[n+1] = y[n] + dt/6·(k1 + 2·k2 + 2·k3 + k4)
+-------------------------------------------------------------------------------------------------
+*	[Example]: //N连杆摆动
+		Mat<> angle(10), angleVeloc(10); angle.fill(PI / 2);
+		Dynamics::run(
+			angle, angleVeloc, 0.01, 1, 
+			[](Mat<>& x, Mat<>& ddx){
+				Dynamics::Lagrange(
+					x, ddx,
+					[](int index) { return 1 / 4.0; },
+					[](Mat<>& x, int index) { return 10 / 2.0 * (10 - index) * sin(x[index]); }
+				);
+			}
+		);
 *************************************************************************************************/
 /*----------------[ 运动 ]----------------*/
+void run(Mat<>& x, Mat<>&dx, double dt, int enpoch, void(*AcceleFun)(Mat<>& x, Mat<>& ddx)) {
+	Mat<>
+		 xTmp	(x),
+		dxTmp	(dx),
+		ddx		(x.rows),
+		kix, kidx, kx, kdx,tmp;
+	while (enpoch--) {
+		for (int k = 0; k < 4; k++) {
+			AcceleFun(xTmp, ddx);
+			kidx = ddx;
+			kix  = dxTmp;
+			if (k == 0) {
+				kx  = kix;					 xTmp.add( x, kix  *= dt / 2);
+				kdx = kidx;					dxTmp.add(dx, kidx *= dt / 2);
+			}
+			if (k == 1) {
+				kx  += tmp.mult(2, kix );	 xTmp.add( x, kix  *= dt / 2);
+				kdx += tmp.mult(2, kidx);	dxTmp.add(dx, kidx *= dt / 2);	
+			}
+			if (k == 2) {
+				kx  += tmp.mult(2, kix);	 xTmp.add( x, kix  *= dt);
+				kdx += tmp.mult(2, kidx);	dxTmp.add(dx, kidx *= dt);
+			}
+			if (k == 3) {
+				kx  += kix ;
+				kdx += kidx;
+			}
+		}
+		 x += (kx  *= dt / 6);
+		dx += (kdx *= dt / 6);
+	}
+}
 void run(Mat<>* r, Mat<>* v, double* mass, int N, double dt, int enpoch, 
-	void(*AcceleFun)(Mat<>*, Mat<>*, double*, Mat<>*, int) // r,v,mess,accele,N
+	void(*AcceleFun)(Mat<>*, double*, Mat<>*, int) // r,mess,accele,N
 ) {
 	static Mat<>* rt =		(Mat<>*)calloc(N, sizeof(Mat<>)),
 				* vt =		(Mat<>*)calloc(N, sizeof(Mat<>)),
@@ -32,10 +85,10 @@ void run(Mat<>* r, Mat<>* v, double* mass, int N, double dt, int enpoch,
 		// k1,k2,k3,k4		//r_diff = v;  v_diff = a
 		for (int k = 0; k < 4; k++) {
 			if (k == 0) {
-				kir = v;  AcceleFun(r,  v,  mass, accele, N);
+				kir = v;  AcceleFun(r,  mass, accele, N);
 			}
 			else {
-				kir = vt; AcceleFun(rt, vt, mass, accele, N);
+				kir = vt; AcceleFun(rt, mass, accele, N);
 			}
 			kiv = accele;
 			for (int i = 0; i < N; i++) {
@@ -63,6 +116,20 @@ void run(Mat<>* r, Mat<>* v, double* mass, int N, double dt, int enpoch,
 		}
 	}
 }
+/*************************************************************************************************
+*							Lagrange 方程
+*	[公式]: \frac{d}{dt}(\frac{∂L}{∂\dot x_i}) = \frac{∂L}{∂x_i}
+*			L = T - U
+*	x: 广义坐标
+*************************************************************************************************/
+Mat<>& Lagrange(
+	Mat<>& x, Mat<>& ddx, double(*d_pL_pdx_dt)(int i), double(*pU_px)(Mat<>& x, int i)
+) {
+	for (int i = 0; i < x.size(); i++)
+		ddx[i] = pU_px(x, i) / d_pL_pdx_dt(i);
+	return ddx;
+}
+
 /*************************************************************************************************
 *							MassCentre	质心
 *	[定义]:
@@ -111,7 +178,7 @@ double CentrifugalPotential(double angularVeloc, Mat<>& center, Mat<>& position)
 *************************************************************************************************/
 static const double G = 6.67408E-11;
 /*----------------[ 万有引力 ]----------------*/
-void GravitationAcceleration(Mat<>* r, Mat<>* v, double* mass, Mat<>* accele, int N) {
+void GravitationAcceleration(Mat<>* r, double* mass, Mat<>* accele, int N) {
 	Mat<> dr;
 	for (int i = 0; i < N; i++) {
 		accele[i].zero(r[0]);
@@ -161,7 +228,7 @@ Fm = μm am
 即
 	 (M + m) m   ^     ->
 - G ------------ r = m am
-		 r^2
+	    r^2
 			   3
 T = 2π sqrt( A  / G (M + m) )
 			 3    2                              2

@@ -12,10 +12,10 @@ namespace Calculus {
 *	[公式]:           ->   ->       ->      ->
 		对于初值问题: y' = f(t, y)	y(t0) = y0
 		y[n+1] = y[n] + h/6·(k1 + 2·k2 + 2·k3 + k4)
-		k1 = f(tn , yn)					//时间段开始时的斜率
-		k2 = f(tn + h/2 , yn + h/2·k1)	//时间段中点斜率,通过欧拉法采用k1决定y在tn+h/2值
-		k3 = f(tn + h/2 , yn + h/2·k2)	//时间段中点斜率,采用k2决定y值
-		k4 = f(tn + h , yn + h·k3)		//时间段终点的斜率
+		k1 = f(tn , yn)					//区间开始斜率
+		k2 = f(tn + h/2 , yn + h/2·k1)	//区间中点斜率,通过欧拉法采用k1决定y在tn+h/2值
+		k3 = f(tn + h/2 , yn + h/2·k2)	//区间中点斜率,采用k2决定y值
+		k4 = f(tn + h , yn + h·k3)		//区间终点斜率
 *	[目的]: 解常微分方程组
 		[ y1'(t) = f1(y1 , ... , yn , t)          ->   ->
 		| y2'(t) = f2(y1 , ... , yn , t)    =>    y' = f(t , y)
@@ -24,15 +24,15 @@ namespace Calculus {
 *	[性质]:
 		* RK4法是四阶方法，每步误差是h⁵阶，总积累误差为h⁴阶
 ******************************************************************************/
-void RungeKutta(Mat<>& y, double dt, double t0, int enpoch, Mat<>& (*f)(double t, Mat<>& y)) {
+void RungeKutta(Mat<>& y, double dt, double t0, int enpoch, Mat<>& (*derivY)(double t, Mat<>& y)) {
 	Mat<> tmp, k, k1, k2, k3, k4;
 	double t = t0;
 	while (enpoch--) {
 		// k1, k2, k3 ,k4
-		k1 = f(t, y);
-		k2 = f(t + dt / 2, tmp.add(y, tmp.mult(dt / 2, k1)));
-		k3 = f(t + dt / 2, tmp.add(y, tmp.mult(dt / 2, k2)));
-		k4 = f(t + dt,     tmp.add(y, tmp.mult(dt, k3)));
+		k1 = derivY(t, y);
+		k2 = derivY(t + dt / 2, tmp.add(y, tmp.mult(dt / 2, k1)));
+		k3 = derivY(t + dt / 2, tmp.add(y, tmp.mult(dt / 2, k2)));
+		k4 = derivY(t + dt,     tmp.add(y, tmp.mult(dt,		k3)));
 		// y[n+1] = y[n] + h/6·(k1 + 2·k2 + 2·k3 + k4)
 		k.add(k.add(k1, k4), tmp.mult(2, tmp.add(k2, k3)));
 		y.add(y, k.mult(dt / 6, k));
@@ -105,7 +105,8 @@ Tensor<double>* PoissonEquation(Mat<>st, Mat<>ed, Mat<> delta, double (*f) (Mat<
 ******************************************************************************/
 void WaveEquation(Mat<>& Map, Mat<>& veloc, void (*setBoundaryEquations) (Mat<>& x, int time),
 	double alpha, double deltaTime, double deltaX, double deltaY, int EndTimes) {
-	Mat<> MapNow(Map), MapPrev(Map);
+	Mat<> MapNow (Map), 
+		  MapPrev(Map);
 	//对于t = 1 * Δt时刻, 有 u(r,t=Δt) = u(r,t=0) + ∂u(r,t=0)/∂t·Δt + a▽²u·Δt²
 	for (int x = 1; x < Map.rows - 1; x++) {
 		for (int y = 1; y < Map.cols - 1; y++) {
