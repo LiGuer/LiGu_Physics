@@ -37,7 +37,44 @@ namespace Dynamics {
 					[](Mat<>&  x) {
 						double sum = 0;
 						for (int i = 0; i < x.size(); i++) sum += (x.size() - i) * cos(x[i]);
-						return -10.0 / 2 * (sum);
+						return 10.0 / 2 * (sum);
+					}
+				);
+			}
+		);
+*	[Example] //重力 + 抛体 + 弹簧
+		Mat<> x(2), v(2); v.fill(40);
+		Dynamics::run(
+			x, v, 0.1, 1,
+			[](Mat<>& x, Mat<>& dx, Mat<>& ddx) {
+				Dynamics::Lagrange(
+					x, dx, ddx,
+					[](Mat<>& dx) { return 1.0 / 2 * dx.dot(dx); },
+					[](Mat<>& x)  { return x[1] * 10 
+					+ 0.05 * (pow(x[0], 2) + pow(x[1], 2))
+					; }
+				);
+			}
+		);
+*	[Example] 弹性碰撞
+		#define N 20
+		Mat<> x(2 * N), v(2 * N);
+		x.rands(2 * N, 1, -200, 400);
+		v.rands(2 * N, 1, -50, 50);
+		Dynamics::run(
+			x, v, 0.1, 1,
+			[](Mat<>& x, Mat<>& dx, Mat<>& ddx) {
+				Dynamics::Lagrange(
+					x, dx, ddx,
+					[](Mat<>& dx) { return 1.0 / 2 * dx.dot(dx); },
+					[](Mat<>& x) {
+						double sum = 0;
+						for (int i = 0; i < N; i++) {
+							for (int j = i + 1; j < N; j++) {
+								double d = sqrt(pow(x[2 * i] - x[2 * j], 2) + pow(x[2 * i + 1] - x[2 * j + 1], 2));
+								sum += d > 40 ? 0 : 1000 * (40 - d);
+							}
+						}return sum;
 					}
 				);
 			}
@@ -129,7 +166,7 @@ void run(Mat<>* r, Mat<>* v, double* mass, int N, double dt, int enpoch,
 *************************************************************************************************/
 Mat<>& Lagrange(Mat<>& x, Mat<>& dx, Mat<>& ddx, double(*T)(Mat<>& dx), double(*U)(Mat<>& x)) {
 	for (int i = 0; i < x.size(); i++)
-		ddx[i] = Calculus::PartiDeriv(x, i, 1E-9, U) / Calculus::PartiDeriv2(dx, i, 1E-4, T);
+		ddx[i] = - Calculus::PartiDeriv(x, i, 1E-9, U) / Calculus::PartiDeriv2(dx, i, 1E-4, T);
 	return ddx;
 }
 /*************************************************************************************************
