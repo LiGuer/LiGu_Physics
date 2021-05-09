@@ -56,7 +56,7 @@ namespace Dynamics {
 				);
 			}
 		);
-*	[Example] 弹性碰撞
+*	[Example] //弹性碰撞
 		#define N 20
 		Mat<> x(2 * N), v(2 * N);
 		x.rands(2 * N, 1, -200, 400);
