@@ -6,6 +6,7 @@
 <Electromagnetics.h>		电动力学类
 <QuantumMechanics.h>	量子力学类
 ```
+
 ## <Calculus.h> 微积分 / 微分方程
 ```
 double PartiDeriv(Mat<>& x, int index, double dx, double(*func)(Mat<>& x));	\\偏导数
@@ -81,7 +82,7 @@ double* GravitatePotential(Mat<>* r, double* mass, int N);															//引�
 		}
 	);
 ```
-## <Electromagnetics> 电动力学类
+## <Electromagnetics.h> 电动力学类
 ```
 void Electromagnetics(Tensor<ElecmagnCell>& Map, void (*setBoundaryValue) (Tensor<ElecmagnCell>& x, double time),
 	double deltaTime, double deltaDim[], int EndTimes)							//ComputationalElectromagnetics -  FDTD

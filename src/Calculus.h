@@ -2,11 +2,25 @@
 #define CALCULUS_H
 #include "../../LiGu_AlgorithmLib/Mat.h"
 #include "../../LiGu_AlgorithmLib/Tensor.h"
+#include "../../LiGu_AlgorithmLib/NumberTheory.h"
 /******************************************************************************
 *                    微积分 / 微分方程
 ******************************************************************************/
 namespace Calculus {
 #define PI 3.141592653589
+/******************************************************************************
+*                    导数  N阶
+*	[定义]:
+		偏导: df/dx = lim_(x->0)  [ f(x+Δx) -  f(x-Δx) ] / (2 Δx)
+		N阶偏导:
+			  d^n f/dx ^n = lim_(x->0)  [ f^(n - 1)(x+Δx) -  f^(n - 1)(x-Δx) ] / (2 Δx)
+******************************************************************************/
+double diff(double x0, double(*f)(double x), int N = 1,double dx = 1E-4) {
+	if (N == 0) return f(x0);
+	return N == 1 ?
+		(f(x0 + dx) - f(x0 - dx)) / (2 * dx) :
+		(diff(x0 + dx, f, N - 1) - diff(x0 - dx, f, N - 1)) / (2 * dx);
+}
 /******************************************************************************
 *                    偏导数
 *	[定义]:
@@ -15,19 +29,32 @@ namespace Calculus {
 			∂²f/∂x_i² = [ f'(..,xi+Δxi,..) -  f'(..,xi,..) ] / Δxi
 					  = f(..,xi+2Δxi) - f'(..,x) - f'(..,xi+Δxi) + f'(..,xi-Δxi)
 ******************************************************************************/
-double PartiDeriv(Mat<>& x, int index, double dx, double(*func)(Mat<>& x)) {
+double PartiDeriv(Mat<>& x, int index, double dx, double(*f)(Mat<>& x)) {
 	Mat<> xt = x;
-	xt[index] += dx;		double t1 = func(xt);
-	xt[index] -= 2 * dx;	double t2 = func(xt);
+	xt[index] += dx;		double t1 = f(xt);
+	xt[index] -= 2 * dx;	double t2 = f(xt);
 	return (t1 - t2) / (2 * dx);
 }
-double PartiDeriv2(Mat<>& x, int index, double dx, double(*func)(Mat<>& x)) {
+double PartiDeriv2(Mat<>& x, int index, double dx, double(*f)(Mat<>& x)) {
 	Mat<> xt = x;
-	xt[index] += 2 * dx;	double t1 = func(xt);
-	xt[index] -= 2 * dx;	double t2 = func(xt);
-	xt[index] += dx;		double t3 = func(xt);
-	xt[index] -= 2 * dx;	double t4 = func(xt);
+	xt[index] += 2 * dx;	double t1 = f(xt);
+	xt[index] -= 2 * dx;	double t2 = f(xt);
+	xt[index] += dx;		double t3 = f(xt);
+	xt[index] -= 2 * dx;	double t4 = f(xt);
 	return (t1 - t2 - t3 + t4) / (2 * dx * dx);
+}
+/******************************************************************************
+*                    Taylor 展开
+*	[定义]: 
+		f(x) = f(x0)/0! + f'(x0)/1!·(x-x0) + ... + f^(n)(x0)/n!·(x-x0)
+*	[Example]:
+		Calculus::TaylorFormula(0, [](double x) { return sin(x); }, Coeff, 10);
+******************************************************************************/
+Mat<>& TaylorFormula(double x0, double(*f)(double x), Mat<>& Coeff, int N = 3) {
+	Coeff.alloc(N + 1);
+	for (int i = 0; i <= N; i++) 
+		Coeff[i] = diff(x0, f, i) / NumberTheory::Factorial(i);
+	return Coeff;
 }
 /******************************************************************************
 *                    解微分方程: Runge Kutta 方法
