@@ -5,6 +5,23 @@
 #include "../../LiGu_AlgorithmLib/NumberTheory.h"
 /******************************************************************************
 *                    微积分 / 微分方程
+-------------------------------------------------------------------------------
+double diff		(double x0, double(*f)(double x), int N = 1, double dx = 1E-3);		\\导数 (N阶)
+double diff_	(double x0, double(*f)(double x), int N = 1, double dx = 1E-3);
+double Curvature(double x0, double(*y)(double x),			 double dx = 1E-3);		\\曲率
+double PartiDeriv	(Mat<>& x, int index, double dx, double(*func)(Mat<>& x));		\\偏导数
+double PartiDeriv2	(Mat<>& x, int index, double dx, double(*func)(Mat<>& x));		\\偏导数 (2阶)
+Mat<>& TaylorFormula(double x0, double(*f)(double x), Mat<>& Coeff, int N = 3);		\\Taylor展开
+double Exp		(double x, int N = 18);												\\常用函数
+double Sin		(double x, int N = 18);
+double Cos		(double x, int N = 18);
+double lnOneAdd	(double x, int N = 18);
+double Arctan	(double x, int N = 18);
+double PowOneAdd(double x, double p, int N = 18);
+void   RungeKutta(Mat<>& y, double dt, double t0, int enpoch, Mat<>& (*derivY)(double t, Mat<>& y));
+																					\\解常微分方程组: RungeKutta法
+	   PoissonEquation();															\\Poisson's方程
+	   WaveEquation();																\\波动方程
 ******************************************************************************/
 namespace Calculus {
 #define PI 3.141592653589
@@ -34,6 +51,14 @@ double diff_(double x0, double(*f)(double x), int N = 1, double dx = 1E-3) {
 		- diff_(x0 -	 dx, f, N - 1) * 8
 		+ diff_(x0 - 2 * dx, f, N - 1)
 		) / (12 * dx);
+}
+/******************************************************************************
+*                    曲率
+*	[定义]: 单位弧段弯曲的角度. 也即等效曲率圆的半径的倒数.
+*	[公式]: K = |Δα/Δs| = 1 / R = |y''| / (1 + y'²)^(3/2)
+******************************************************************************/
+double Curvature(double x0, double(*y)(double x), double dx = 1E-3) {
+	return fabs(diff(x0, y, 2)) / pow(1 + pow(diff(x0, y), 2), 1.5);
 }
 /******************************************************************************
 *                    偏导数
@@ -95,6 +120,21 @@ double Cos(double x, int N = 18) {
 	for (int i = 0; i <= N; i += 2) ans += (i % 4 == 0 ? 1 : -1) * pow(x, i) / NumberTheory::Factorial(i);
 	return ans;
 }
+double lnOneAdd(double x, int N = 18) {
+	double ans = 0;
+	for (int i = 1; i <= N; i++) ans += (i % 2 == 1 ? 1 : -1) * pow(x, i) / i;
+	return ans;
+}
+double Arctan(double x, int N = 18) {
+	double ans = 0;
+	for (int i = 1; i <= N; i += 2) ans += (i % 4 == 1 ? 1 : -1) * pow(x, i) / i;
+	return ans;
+}
+double PowOneAdd(double x, double p, int N = 18) {
+	double ans = 0, pTmp = 1;
+	for (int i = 0; i <= N; i++) { ans += pTmp * pow(x, i) / NumberTheory::Factorial(i); pTmp *= (p - i); }
+	return ans;
+}
 /******************************************************************************
 *                    积分
 *	[定义]:
@@ -119,7 +159,7 @@ double integral(double xSt, double xEd, double(*f)(double x), int n) {
 	return ans;
 }
 /******************************************************************************
-*                    解微分方程: Runge Kutta 方法
+*                    解常微分方程组: Runge Kutta 方法
 *	[公式]:           ->   ->       ->      ->
 		对于初值问题: y' = f(t, y)	y(t0) = y0
 		y[n+1] = y[n] + h/6·(k1 + 2·k2 + 2·k3 + k4)
