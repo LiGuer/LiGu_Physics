@@ -11,15 +11,29 @@ namespace Calculus {
 /******************************************************************************
 *                    导数  N阶
 *	[定义]:
-		偏导: df/dx = lim_(x->0)  [ f(x+Δx) -  f(x-Δx) ] / (2 Δx)
+		导数: df/dx = lim_(x->0)  [ f(x+Δx) - f(x-Δx) ] / (2 Δx)
 		N阶偏导:
-			  d^n f/dx ^n = lim_(x->0)  [ f^(n - 1)(x+Δx) -  f^(n - 1)(x-Δx) ] / (2 Δx)
+			  d^n f/dx ^n = lim_(x->0)  [ f^(n - 1)(x+Δx) - f^(n - 1)(x-Δx) ] / (2 Δx)
+*	[算法]: 中心差分公式
+		f'(x) = ( f(x+Δx) -  f(x-Δx) ) / (2 Δx) + Err(f,Δx)
+		·截断误差: Err(f,Δx) = h² f^(3)(c) / 6 = O(h²)
+		·精度: O(h²)
+		f'(x) = ( -f(x+2Δx) + 8·f(x+Δx) - 8·f(x-Δx) + f(x-2Δx) ) / (12 Δx) + Err(f,Δx)
+		·截断误差: Err(f,Δx) = h^4 f^(5)(c) / 6 = O(h^4)
+		·精度: O(h^4)
 ******************************************************************************/
-double diff(double x0, double(*f)(double x), int N = 1,double dx = 1E-4) {
-	if (N == 0) return f(x0);
-	return N == 1 ?
-		(f(x0 + dx) - f(x0 - dx)) / (2 * dx) :
+double diff(double x0, double(*f)(double x), int N = 1,double dx = 1E-3) {
+	return N == 0 ? f(x0) :
 		(diff(x0 + dx, f, N - 1) - diff(x0 - dx, f, N - 1)) / (2 * dx);
+}
+double diff_(double x0, double(*f)(double x), int N = 1, double dx = 1E-3) {
+	return N == 0 ? f(x0) : 
+		(
+		- diff_(x0 + 2 * dx, f, N - 1) 
+		+ diff_(x0 +	 dx, f, N - 1) * 8
+		- diff_(x0 -	 dx, f, N - 1) * 8
+		+ diff_(x0 - 2 * dx, f, N - 1)
+		) / (12 * dx);
 }
 /******************************************************************************
 *                    偏导数
@@ -55,6 +69,31 @@ Mat<>& TaylorFormula(double x0, double(*f)(double x), Mat<>& Coeff, int N = 3) {
 	for (int i = 0; i <= N; i++) 
 		Coeff[i] = diff(x0, f, i) / NumberTheory::Factorial(i);
 	return Coeff;
+}
+/******************************************************************************
+*                    常用函数
+*	[公式]: (Taylor展开)
+		exp(x) = 1 + x + x^2/2! + x^3/3! + ...
+		sin(x) = x - x^3/3! + x^5/5! - x^7/7! + ...
+		cos(x) = 1 - x^2/2! + x^4/4! - x^6/6! + ...
+		ln(1+x)= x - x^2/2 + x^3/3 - x^4/4 + ...	x∈[-1,1]
+	  arctan(x)= x - x^3/3 + x^5/5 - x^7/7 + ...	x∈[-1,1]
+		(1+x)^p= 1 + px + p(p-1)/2!·x^2 + p(p-1)(p-2)/3!·x^2 + ...	|x| < 1
+******************************************************************************/
+double Exp(double x, int N = 18) {
+	double ans = 0;
+	for (int i = 0; i <= N; i++) ans += pow(x, i) / NumberTheory::Factorial(i);
+	return ans;
+}
+double Sin(double x, int N = 18) {
+	double ans = 0;
+	for (int i = 1; i <= N; i += 2) ans += (i % 4 == 1 ? 1 : -1) * pow(x, i) / NumberTheory::Factorial(i);
+	return ans;
+}
+double Cos(double x, int N = 18) {
+	double ans = 0;
+	for (int i = 0; i <= N; i += 2) ans += (i % 4 == 0 ? 1 : -1) * pow(x, i) / NumberTheory::Factorial(i);
+	return ans;
 }
 /******************************************************************************
 *                    解微分方程: Runge Kutta 方法
