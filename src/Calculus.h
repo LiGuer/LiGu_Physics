@@ -96,6 +96,29 @@ double Cos(double x, int N = 18) {
 	return ans;
 }
 /******************************************************************************
+*                    积分
+*	[定义]:
+*	[算法]: NewtonCotes 公式
+		∫_a^b f(x) = (b - a) Σ_(k=0)^n  C_k^(n) f(xi)
+		C_k^(n) = (-1)^(n-k) / (n·k!(n-k)!) ∫_0^n Π_(k≠j) (t-j)dt 
+		n = 1: C = {1/2, 1/2}
+		n = 2: C = {1/6, 4/6, 1/6}
+		n = 4: C = {7/90, 32/90, 12/90, 32/90, 7/90}
+		* NewtonCotes 公式在 n > 8 时不具有稳定性
+		复合求积法: 将积分区间分成若干个子区间, 再在每个子区间使用低阶求积公式.
+******************************************************************************/
+double integral_NewtonCotes(double xSt, double xEd, double(*f)(double x), int n = 4) {
+	double ans = 0, dx = (xSt - xEd) / n, xi = xSt,
+		C[] = { 7 / 90.0, 32 / 90.0, 12 / 90.0, 32 / 90.0, 7 / 90.0 };
+	for (int i = 0; i <= n; i++, xi += dx) ans += C[i] * f(xi);
+	return ans *= (xEd - xSt);
+}
+double integral(double xSt, double xEd, double(*f)(double x), int n) {
+	double ans = 0, dx = (xSt - xEd) / n, xi = xSt;
+	for (int i = 0; i < n; i++, xi += dx) ans += integral_NewtonCotes(xi, xi + dx, f);
+	return ans;
+}
+/******************************************************************************
 *                    解微分方程: Runge Kutta 方法
 *	[公式]:           ->   ->       ->      ->
 		对于初值问题: y' = f(t, y)	y(t0) = y0
