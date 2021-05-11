@@ -84,35 +84,70 @@ double Curvature(double x0, F&& y, double dx = 1E-3) {
 					  = f(..,xi+Δxi) - 2·f'(..,x) + f'(..,xi-Δxi)
 ******************************************************************************/
 template<typename F>
-double PartiDeriv(Mat<>& x, int index, double dx, F&& f) {
-	x[index] += dx;	double t1 = f(x);	x[index] -= dx;
-	x[index] -= dx;	double t2 = f(x);	x[index] += dx;
+double PartiDeriv(Mat<>& x, int dim, double dx, F&& f) {
+	x[dim] += dx;	double t1 = f(x);	x[dim] -= dx;
+	x[dim] -= dx;	double t2 = f(x);	x[dim] += dx;
 	return (t1 - t2) / (2 * dx);
 }
 template<typename F>
-double PartiDeriv2(Mat<>& x, int index, double dx, F&& f) {
+double PartiDeriv2(Mat<>& x, int dim, double dx, F&& f) {
 	double ans = 0;
-	x[index] += dx; ans += f(x); x[index] -= dx;
-	ans -= f(x) * 2;
-	x[index] -= dx; ans += f(x); x[index] += dx;
+	x[dim] += dx; ans += f(x); x[dim] -= dx;
+				  ans -= f(x) * 2;
+	x[dim] -= dx; ans += f(x); x[dim] += dx;
 	return ans / (dx * dx);
 }
 /******************************************************************************
-*                    Laplace 算子
-*	[定义]: ▽² ≡ ∂²/∂x² + ∂²/∂y² + ∂²/∂z² + ...
+*                    Hamilton 算子、Laplace 算子
+*	[定义]: 
+		Hamilton: ▽  ≡ ∂/∂x \vec x + ∂/∂y \vec y + ∂/∂z \vec z + ... (看成一个矢量)
+		Laplace:  ▽² ≡ ∂²/∂x² + ∂²/∂y² + ∂²/∂z² + ...
+		▽² = ▽·▽
 *	[算法]: 有限差分法
 		[u(x+1,...) - 2·u(x,...) + u(x-1,...)] / Δx² + ...
+*	[注]: Hamilton算子程序，见<梯度、散度、旋度>
 ******************************************************************************/
 template<typename F>
-inline double LaplaceOperator(Mat<>& x, Mat<>& dx, F&& f) {
+inline double  LaplaceOperator(Mat<>& x, Mat<>& dx, F&& f) {
 	double ans = 0;
 	for (int dim = 0; dim < dx.size(); dim++) ans += PartiDeriv2(x, dim, dx[dim], f);
 	return ans;
 }
-inline double LaplaceOperator(Mat<>& u, int index, Mat<>& dx, int(*position)(int index, int dim, int delta)) {
+/******************************************************************************
+*                    梯度、散度、旋度
+*	[定义]:
+		梯度: ▽f		: 矢量, 函数在该点处变化率最大的方向.
+		散度: ▽·\vec f: 标量, 矢量场在该点发散的程度, 表征场的有源性(>0源,<0汇,=0无源)
+		旋度: ▽×\vec f: 矢量, 矢量场在该点旋转的程度, 
+							方向是旋转度最大的环量的旋转轴, 旋转的方向满足右手定则,
+							大小是绕该旋转轴旋转的环量与旋转路径围成的面元面积之比.
+*	[公式]: (直角坐标系)
+		▽f        = ∂f/∂x \vec x + ∂f/∂y \vec y + ∂f/∂z \vec z + ...
+		▽·\vec f = ∂fx/∂x + ∂fy/∂y + ∂fz/∂z
+		▽×\vec f = (∂fz/∂y - ∂fy/∂z) \vec x
+				   + (∂fx/∂z - ∂fz/∂x) \vec y
+				   + (∂fy/∂x - ∂fx/∂y) \vec z
+******************************************************************************/
+template<typename F>
+Mat<>& Grad(Mat<>& x, Mat<>& dx, F&& f, Mat<>& ans) {
+	ans.alloc(x.rows);
+	for (int dim = 0; dim < x.size(); dim++) ans[dim] = PartiDeriv(x, dim, dx[dim], f);
+	return ans;
+}
+template<typename F>
+double Div(Mat<>& x, Mat<>& dx, F&& f0, F&& f1, F&& f2) {
 	double ans = 0;
-	for (int dim = 0; dim < dx.size(); dim++)
-		ans += (u[position(index, dim, 1)] - 2 * u[index] + u[position(index, dim, -1)]) / (dx[dim] * dx[dim]);
+	ans += PartiDeriv(x, 0, dx[0], f0);
+	ans += PartiDeriv(x, 1, dx[1], f1);
+	ans += PartiDeriv(x, 2, dx[2], f2);
+	return ans;
+}
+template<typename F>
+Mat<>& Curl(Mat<>& x, Mat<>& dx, F&& f0, F&& f1, F&& f2, Mat<>& ans) {
+	ans.alloc(x.rows);
+	ans[0] = PartiDeriv(x, 1, dx[1], f2) - PartiDeriv(x, 2, dx[2], f1);
+	ans[1] = PartiDeriv(x, 2, dx[2], f0) - PartiDeriv(x, 0, dx[0], f2);
+	ans[2] = PartiDeriv(x, 0, dx[0], f1) - PartiDeriv(x, 1, dx[1], f0);
 	return ans;
 }
 /*#############################################################################
@@ -183,6 +218,7 @@ double PowOneAdd(double x, double p, int N = 18) {
 *	[Reference]:
 		Thanks for https://www.math.wustl.edu/~victor/mfmm/fourier/fft.c
 ******************************************************************************/
+/*
 void FFT(std::complex<double>* v, int n, std::complex<double>* tmp) {
 	if (n > 1) return;
 	std::complex<double> z, w, * vo = tmp + n / 2, * ve = tmp;
@@ -217,7 +253,7 @@ void iFFT(std::complex<double>* v, int n, std::complex<double>* tmp){
 		v[m]		 = ve[m] + z;
 		v[m + n / 2] = ve[m] - z;
 	}
-}
+}*/
 /*#############################################################################
 
 								积分
@@ -364,16 +400,6 @@ void WaveEquation(Mat<>& u, Mat<>& dudt, void (*boundaryFunc) (Mat<>& u, int tim
 				  (u(x + 1, y) - 2 * u(x, y) + u(x - 1, y)) / (dx * dx)
 				+ (u(x, y + 1) - 2 * u(x, y) + u(x, y - 1)) / (dy * dy)
 				);
-		boundaryFunc(u.swap(uPrev), t);
-	}
-}
-void WaveEquation(Mat<>& u, Mat<>& dudt, void (*boundaryFunc) (Mat<>& u, int time),
-	double A, double dt, Mat<>& dx, int tEd, int(*position)(int index, int dim, int delta)) {
-	Mat<> uPrev = u;
-	for (int t = 1; t < tEd; t++) {
-		for (int i = 0; i < u.size(); i++)
-			uPrev[i] += (t == 0 ? dudt[i] * dt : -2 * u[i])
-				+ A * dt * dt * LaplaceOperator(u, i, dx, position);
 		boundaryFunc(u.swap(uPrev), t);
 	}
 }
