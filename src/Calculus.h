@@ -4,14 +4,17 @@
 #include "../../LiGu_AlgorithmLib/Tensor.h"
 #include "../../LiGu_AlgorithmLib/NumberTheory.h"
 #include <functional>
+#include <complex>
 /******************************************************************************
 *                    微积分 / 微分方程
 -------------------------------------------------------------------------------
+---------------- 微分 ----------------
 double diff		(double x0, double(*f)(double x), int N = 1, double dx = 1E-3);		\\导数 (N阶)
 double diff_	(double x0, double(*f)(double x), int N = 1, double dx = 1E-3);
 double Curvature(double x0, double(*y)(double x),			 double dx = 1E-3);		\\曲率
 double PartiDeriv	(Mat<>& x, int index, double dx, double(*func)(Mat<>& x));		\\偏导数
 double PartiDeriv2	(Mat<>& x, int index, double dx, double(*func)(Mat<>& x));		\\偏导数 (2阶)
+---------------- 级数展开 ------------
 Mat<>& TaylorFormula(double x0, double(*f)(double x), Mat<>& Coeff, int N = 3);		\\Taylor展开
 double Exp		(double x, int N = 18);												\\常用函数
 double Sin		(double x, int N = 18);
@@ -19,6 +22,9 @@ double Cos		(double x, int N = 18);
 double lnOneAdd	(double x, int N = 18);
 double Arctan	(double x, int N = 18);
 double PowOneAdd(double x, double p, int N = 18);
+---------------- 积分 ----------------
+double integral(double xSt, double xEd, F&& f, int n);								\\积分
+---------------- 微分方程 ------------
 void   RungeKutta(Mat<>& y, double dx, double x0, Mat<>& (*derivY)(double x, Mat<>& y), int enpoch = 1);
 																					\\解常微分方程组: RungeKutta法
 	   PoissonEquation();															\\Poisson's方程
@@ -26,6 +32,11 @@ void   RungeKutta(Mat<>& y, double dx, double x0, Mat<>& (*derivY)(double x, Mat
 ******************************************************************************/
 namespace Calculus {
 #define PI 3.141592653589
+/*#############################################################################
+
+								微分
+
+#############################################################################*/
 /******************************************************************************
 *                    导数  N阶
 *	[定义]:
@@ -60,7 +71,8 @@ double diff_(double x0, F&& f, int N = 1, double dx = 1E-3) {
 *	[定义]: 单位弧段弯曲的角度. 也即等效曲率圆的半径的倒数.
 *	[公式]: K = |Δα/Δs| = 1 / R = |y''| / (1 + y'²)^(3/2)
 ******************************************************************************/
-double Curvature(double x0, double(*y)(double x), double dx = 1E-3) {
+template<typename F>
+double Curvature(double x0, F&& y, double dx = 1E-3) {
 	return fabs(diff(x0, y, 2)) / pow(1 + pow(diff(x0, y), 2), 1.5);
 }
 /******************************************************************************
@@ -103,6 +115,11 @@ inline double LaplaceOperator(Mat<>& u, int index, Mat<>& dx, int(*position)(int
 		ans += (u[position(index, dim, 1)] - 2 * u[index] + u[position(index, dim, -1)]) / (dx[dim] * dx[dim]);
 	return ans;
 }
+/*#############################################################################
+
+								级数展开
+
+#############################################################################*/
 /******************************************************************************
 *                    Taylor 展开
 *	[定义]: 
@@ -158,6 +175,55 @@ double PowOneAdd(double x, double p, int N = 18) {
 	return ans;
 }
 /******************************************************************************
+*					Fast Fourier Transform 快速Fourier变换
+*	[定义]: 离散Fourier变换的高效算法
+*	[公式]:
+		离散Fourier变换: X[k] = Σ_(n=0)^(N-1)  e^(-j2πnk/N)·x[n]
+*	[时间复杂度]: O(N·lgN)
+*	[Reference]:
+		Thanks for https://www.math.wustl.edu/~victor/mfmm/fourier/fft.c
+******************************************************************************/
+void FFT(std::complex<double>* v, int n, std::complex<double>* tmp) {
+	if (n > 1) return;
+	std::complex<double> z, w, * vo = tmp + n / 2, * ve = tmp;
+	for (int k = 0; k < n / 2; k++) {
+		ve[k] = v[2 * k];
+		vo[k] = v[2 * k + 1];
+	}
+	FFT(ve, n / 2, v);							//FFT 偶数序列 v[] 
+	FFT(vo, n / 2, v);							//FFT 奇数序列 v[] 
+	for (int m = 0; m < n / 2; m++) {
+		w.real = cos(2 * PI * m / (double)n);
+		w.imag =-sin(2 * PI * m / (double)n);
+		z			 = w * vo[m];
+		v[m]		 = ve[m] + z;
+		v[m + n / 2] = ve[m] - z;
+	}
+}
+//逆Fourier变换
+void iFFT(std::complex<double>* v, int n, std::complex<double>* tmp){
+	if (n > 1) return;
+	std::complex<double> z, w, * vo = tmp + n / 2, * ve = tmp;
+	for (int k = 0; k < n / 2; k++) {
+		ve[k] = v[2 * k];
+		vo[k] = v[2 * k + 1];
+	}
+	iFFT(ve, n / 2, v);							//FFT 偶数序列 v[]
+	iFFT(vo, n / 2, v);							//FFT 奇数序列 v[]
+	for (int m = 0; m < n / 2; m++) {
+		w.real = cos(2 * PI * m / (double)n);
+		w.imag = sin(2 * PI * m / (double)n);
+		z			 = w * vo[m];
+		v[m]		 = ve[m] + z;
+		v[m + n / 2] = ve[m] - z;
+	}
+}
+/*#############################################################################
+
+								积分
+
+#############################################################################*/
+/******************************************************************************
 *                    积分
 *	[定义]:
 *	[算法]: NewtonCotes 公式
@@ -182,6 +248,11 @@ double integral(double xSt, double xEd, F&& f, int n) {
 	for (int i = 0; i < n; i++, xi += dx) ans += integral_NewtonCotes(xi, xi + dx, f);
 	return ans;
 }
+/*#############################################################################
+
+								微分方程
+
+#############################################################################*/
 /******************************************************************************
 *                    解常微分方程组: Runge Kutta 方法
 *	[公式]:           ->   ->       ->      ->
@@ -313,5 +384,17 @@ void WaveEquation(Mat<>& u, Mat<>& dudt, void (*boundaryFunc) (Mat<>& u, int tim
 		u(t+1,...) = u(t,r)
 				+ Δt·a{[u(x+1,...) - 2·u(x,...) + u(x-1,...)]/Δx² + ...}
 ******************************************************************************/
+/*#############################################################################
+
+								插值拟合
+
+#############################################################################*/
+/******************************************************************************
+*					样条插值
+*	[算法]: 过求解三弯矩方程组得出曲线函数组的过程
+******************************************************************************/
+void CubicSpline(double x, double y) {
+
+}
 }
 #endif
