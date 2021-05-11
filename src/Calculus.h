@@ -3,6 +3,7 @@
 #include "../../LiGu_AlgorithmLib/Mat.h"
 #include "../../LiGu_AlgorithmLib/Tensor.h"
 #include "../../LiGu_AlgorithmLib/NumberTheory.h"
+#include <functional>
 /******************************************************************************
 *                    微积分 / 微分方程
 -------------------------------------------------------------------------------
@@ -39,11 +40,13 @@ namespace Calculus {
 		·截断误差: Err(f,Δx) = h^4 f^(5)(c) / 6 = O(h^4)
 		·精度: O(h^4)
 ******************************************************************************/
-double diff(double x0, double(*f)(double x), int N = 1,double dx = 1E-3) {
+template<typename F>
+double diff(double x0, F&& f, int N = 1,double dx = 1E-3) {
 	return N == 0 ? f(x0) :
 		(diff(x0 + dx, f, N - 1) - diff(x0 - dx, f, N - 1)) / (2 * dx);
 }
-double diff_(double x0, double(*f)(double x), int N = 1, double dx = 1E-3) {
+template<typename F>
+double diff_(double x0, F&& f, int N = 1, double dx = 1E-3) {
 	return N == 0 ? f(x0) : 
 		(
 		- diff_(x0 + 2 * dx, f, N - 1) 
@@ -65,22 +68,22 @@ double Curvature(double x0, double(*y)(double x), double dx = 1E-3) {
 *	[定义]:
 		偏导: ∂f/∂x_i = [ f(..,xi+Δxi,..) -  f(..,xi-Δxi,..) ] / (2 Δxi)
 		二阶偏导:
-			∂²f/∂x_i² = [ f'(..,xi+Δxi,..) -  f'(..,xi,..) ] / Δxi
-					  = f(..,xi+2Δxi) - f'(..,x) - f'(..,xi+Δxi) + f'(..,xi-Δxi)
+			∂²f/∂x_i² = [ f'(..,xi+Δxi,..) -  f'(..,xi-Δ,..) ] / Δxi
+					  = f(..,xi+Δxi) - 2·f'(..,x) + f'(..,xi-Δxi)
 ******************************************************************************/
-double PartiDeriv(Mat<>& x, int index, double dx, double(*f)(Mat<>& x)) {
-	Mat<> xt = x;
-	xt[index] += dx;		double t1 = f(xt);
-	xt[index] -= 2 * dx;	double t2 = f(xt);
+template<typename F>
+double PartiDeriv(Mat<>& x, int index, double dx, F&& f) {
+	x[index] += dx;	double t1 = f(x);	x[index] -= dx;
+	x[index] -= dx;	double t2 = f(x);	x[index] += dx;
 	return (t1 - t2) / (2 * dx);
 }
-double PartiDeriv2(Mat<>& x, int index, double dx, double(*f)(Mat<>& x)) {
-	Mat<> xt = x;
-	xt[index] += 2 * dx;	double t1 = f(xt);
-	xt[index] -= 2 * dx;	double t2 = f(xt);
-	xt[index] += dx;		double t3 = f(xt);
-	xt[index] -= 2 * dx;	double t4 = f(xt);
-	return (t1 - t2 - t3 + t4) / (2 * dx * dx);
+template<typename F>
+double PartiDeriv2(Mat<>& x, int index, double dx, F&& f) {
+	double ans = 0;
+	x[index] += dx; ans += f(x); x[index] -= dx;
+	ans -= f(x) * 2;
+	x[index] -= dx; ans += f(x); x[index] += dx;
+	return ans / (dx * dx);
 }
 /******************************************************************************
 *                    Laplace 算子
@@ -88,15 +91,10 @@ double PartiDeriv2(Mat<>& x, int index, double dx, double(*f)(Mat<>& x)) {
 *	[算法]: 有限差分法
 		[u(x+1,...) - 2·u(x,...) + u(x-1,...)] / Δx² + ...
 ******************************************************************************/
-inline double LaplaceOperator(Mat<>& x, Mat<>& dx, double(*f)(Mat<>& x)) {
+template<typename F>
+inline double LaplaceOperator(Mat<>& x, Mat<>& dx, F&& f) {
 	double ans = 0;
-	for (int dim = 0; dim < dx.size(); dim++) {
-		double t = 0;
-		x[dim] += 1;	t += f(x) / (dx[dim] * dx[dim]);		x[dim] -= 1;
-						t -= f(x) / (dx[dim] * dx[dim]) * 2;
-		x[dim] -= 1;	t += f(x) / (dx[dim] * dx[dim]);		x[dim] += 1;
-		ans += t / (dx[dim] * dx[dim]);
-	}
+	for (int dim = 0; dim < dx.size(); dim++) ans += PartiDeriv2(x, dim, dx[dim], f);
 	return ans;
 }
 inline double LaplaceOperator(Mat<>& u, int index, Mat<>& dx, int(*position)(int index, int dim, int delta)) {
@@ -112,7 +110,8 @@ inline double LaplaceOperator(Mat<>& u, int index, Mat<>& dx, int(*position)(int
 *	[Example]:
 		Calculus::TaylorFormula(0, [](double x) { return sin(x); }, Coeff, 10);
 ******************************************************************************/
-Mat<>& TaylorFormula(double x0, double(*f)(double x), Mat<>& Coeff, int N = 3) {
+template<typename F>
+Mat<>& TaylorFormula(double x0, F&& f, Mat<>& Coeff, int N = 3) {
 	Coeff.alloc(N + 1);
 	for (int i = 0; i <= N; i++) 
 		Coeff[i] = diff(x0, f, i) / NumberTheory::Factorial(i);
@@ -170,13 +169,15 @@ double PowOneAdd(double x, double p, int N = 18) {
 		* NewtonCotes 公式在 n > 8 时不具有稳定性
 		复合求积法: 将积分区间分成若干个子区间, 再在每个子区间使用低阶求积公式.
 ******************************************************************************/
-double integral_NewtonCotes(double xSt, double xEd, double(*f)(double x), int n = 4) {
+template<typename F>
+double integral_NewtonCotes(double xSt, double xEd, F&& f, int n = 4) {
 	double ans = 0, dx = (xSt - xEd) / n, xi = xSt,
 		C[] = { 7 / 90.0, 32 / 90.0, 12 / 90.0, 32 / 90.0, 7 / 90.0 };
 	for (int i = 0; i <= n; i++, xi += dx) ans += C[i] * f(xi);
 	return ans *= (xEd - xSt);
 }
-double integral(double xSt, double xEd, double(*f)(double x), int n) {
+template<typename F>
+double integral(double xSt, double xEd, F&& f, int n) {
 	double ans = 0, dx = (xSt - xEd) / n, xi = xSt;
 	for (int i = 0; i < n; i++, xi += dx) ans += integral_NewtonCotes(xi, xi + dx, f);
 	return ans;
@@ -199,15 +200,16 @@ double integral(double xSt, double xEd, double(*f)(double x), int n) {
 *	[性质]:
 		* RK4法是四阶方法，每步误差是h⁵阶，总积累误差为h⁴阶
 ******************************************************************************/
-void RungeKutta(Mat<>& y, double dx, double x0, Mat<>& (*derivY)(double x, Mat<>& y), int enpoch = 1) {
+template<typename F>
+void RungeKutta(Mat<>& y, double dx, double x0, F&& f, int enpoch = 1) {
 	Mat<> tmp, k, k1, k2, k3, k4;
 	double x = x0;
 	while (enpoch--) {
 		// k1, k2, k3 ,k4
-		k1 = derivY(x, y);
-		k2 = derivY(x + dx / 2, tmp.add(y, tmp.mult(dx / 2, k1)));
-		k3 = derivY(x + dx / 2, tmp.add(y, tmp.mult(dx / 2, k2)));
-		k4 = derivY(x + dx,     tmp.add(y, tmp.mult(dx,		k3)));
+		k1 = f(x, y);
+		k2 = f(x + dx / 2, tmp.add(y, tmp.mult(dx / 2, k1)));
+		k3 = f(x + dx / 2, tmp.add(y, tmp.mult(dx / 2, k2)));
+		k4 = f(x + dx,     tmp.add(y, tmp.mult(dx,		k3)));
 		// y[n+1] = y[n] + h/6·(k1 + 2·k2 + 2·k3 + k4)
 		k.add(k.add(k1, k4), tmp.mult(2, tmp.add(k2, k3)));
 		y.add(y, k.mult(dx / 6, k));
@@ -224,7 +226,8 @@ void RungeKutta(Mat<>& y, double dx, double x0, Mat<>& (*derivY)(double x, Mat<>
 		对于各种边界条件，Poisson's方程可能有许多种解，但每个解的梯度相同.
 		静电场情况下, 意味着在边界条件下的满足Poisson's方程的势函数，所解得的电场唯一确定.
 ******************************************************************************/
-Tensor<double>* PoissonEquation(Mat<>& st, Mat<>& ed, Mat<>& delta, double(*f) (Mat<>& x)) {
+template<typename F>
+Tensor<double>* PoissonEquation(Mat<>& st, Mat<>& ed, Mat<>& delta, F&& f) {
 	// init
 	Mat<> tmp; tmp.sub(ed, st);
 	Mat<int> dim; dim.E(st.rows);
