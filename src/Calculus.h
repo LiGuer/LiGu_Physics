@@ -93,8 +93,8 @@ template<typename F>
 double PartiDeriv2(Mat<>& x, int dim, double dx, F&& f) {
 	double ans = 0;
 	x[dim] += dx; ans += f(x); x[dim] -= dx;
-				  ans -= f(x) * 2;
 	x[dim] -= dx; ans += f(x); x[dim] += dx;
+				  ans -= f(x) * 2;
 	return ans / (dx * dx);
 }
 /******************************************************************************
@@ -366,25 +366,25 @@ Tensor<double>* PoissonEquation(Mat<>& st, Mat<>& ed, Mat<>& delta, F&& f) {
 *	[算法]: 有限差分法
 		u(t+1,...) = 2·u(t,...) - u(t-1,...)
 				+ Δt²·a{[u(x+1,...) - 2·u(x,...) + u(x-1,...)]/Δx² + ...}
-*	[推导]:
-		∂²u/∂t² = { [u(t+1,rt) - u(t,rt)]/Δt - [u(t,rt) - u(t-1,rt)]/Δt } / Δt
-				= [u(t+1,rt) - 2·u(t,rt) + u(t-1,rt)] / Δt²
-		▽²u同理. 代入波动方程,
-		a { [u(x+1,...) - 2·u(x,...) + u(x-1,...)] / Δx² + ...}
-		  = [u(t+1,...) - 2·u(t,...) + u(t-1,...)] / Δt²
-		所以, 下一时刻有
-		u(t+1,...) = 2·u(t,...) - u(t-1,...)
-				+ Δt²·a{[u(x+1,...) - 2·u(x,...) + u(x-1,...)]/Δx² + ...}
-		特别的, 对于t = 1 * Δt时刻, 有
-		u(r,t=Δt) = u(r,t=0) + ∂u(r,t=0)/∂t·Δt + a▽²u·Δt²
-*	[流程]:
-		对于t = 1 * Δt时刻, 有 u(r,t=Δt) = u(r,t=0) + ∂u(r,t=0)/∂t·Δt + a▽²u·Δt²
-		u(t+1,...) = 2·u(t,...) - u(t-1,...)+Δt²·a{ [u(x + 1,...) - 2·u(x,...) + u(x - 1,...)] / Δx² + ... }
-	[*] 暂时只二维
+-------------------------------------------------------------------------------
+*	[Example]:
+		Mat<> u(N, N), u_pre(N, N), x(2), dx(2);  dx.fill(2);
+		for (int i = 0; i < u.size(); i++) {
+			x.getData(u.i2x(i) * dx[0], u.i2y(i) * dx[1]);
+			upre[i] = Calculus::WaveEquation( x, dx, 0, 1, 1,
+				[&u, &upre, &dx](Mat<>& pos, double t = 0) {
+					int x = pos[0] / dx[0],
+						y = pos[1] / dx[1];
+					if (x < 0 || y < 0 || x >= N || y >= N) return 0.0;
+					return t == 0 ? u(x, y) : u_pre(x, y);
+				}
+			);
+		}
+		u.swap(u_pre); u(N / 2, N / 2) = sin(t / (2 * PI));
 ******************************************************************************/
 template<typename F>
 inline double WaveEquation(Mat<>& x, Mat<>& dx, double t, double dt, double A, F&& u) {
-	return 2 * u(x, t) - u(x, t - dt) + A * dt * dt * LaplaceOperator(x, dx, u);
+	return 2 * u(x, t) - u(x, t - 1) + A * dt * dt * LaplaceOperator(x, dx, u);
 }
 /******************************************************************************
 *                    扩散方程
