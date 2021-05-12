@@ -81,7 +81,7 @@ double Curvature(double x0, F&& y, double dx = 1E-3) {
 		偏导: ∂f/∂x_i = [ f(..,xi+Δxi,..) -  f(..,xi-Δxi,..) ] / (2 Δxi)
 		二阶偏导:
 			∂²f/∂x_i² = [ f'(..,xi+Δxi,..) -  f'(..,xi-Δ,..) ] / Δxi
-					  = f(..,xi+Δxi) - 2·f'(..,x) + f'(..,xi-Δxi)
+					  = f(..,xi+Δxi) - 2·f'(..,x) + f'(..,xi-Δxi) / Δxi²
 ******************************************************************************/
 template<typename F>
 double PartiDeriv(Mat<>& x, int dim, double dx, F&& f) {
@@ -108,7 +108,7 @@ double PartiDeriv2(Mat<>& x, int dim, double dx, F&& f) {
 *	[注]: Hamilton算子程序，见<梯度、散度、旋度>
 ******************************************************************************/
 template<typename F>
-inline double  LaplaceOperator(Mat<>& x, Mat<>& dx, F&& f) {
+inline double LaplaceOperator(Mat<>& x, Mat<>& dx, F&& f) {
 	double ans = 0;
 	for (int dim = 0; dim < dx.size(); dim++) ans += PartiDeriv2(x, dim, dx[dim], f);
 	return ans;
@@ -123,7 +123,7 @@ inline double  LaplaceOperator(Mat<>& x, Mat<>& dx, F&& f) {
 							大小是绕该旋转轴旋转的环量与旋转路径围成的面元面积之比.
 *	[公式]: (直角坐标系)
 		▽f        = ∂f/∂x \vec x + ∂f/∂y \vec y + ∂f/∂z \vec z + ...
-		▽·\vec f = ∂fx/∂x + ∂fy/∂y + ∂fz/∂z
+		▽·\vec f =  ∂fx/∂x + ∂fy/∂y + ∂fz/∂z + ...
 		▽×\vec f = (∂fz/∂y - ∂fy/∂z) \vec x
 				   + (∂fx/∂z - ∂fz/∂x) \vec y
 				   + (∂fy/∂x - ∂fx/∂y) \vec z
@@ -134,16 +134,14 @@ Mat<>& Grad(Mat<>& x, Mat<>& dx, F&& f, Mat<>& ans) {
 	for (int dim = 0; dim < x.size(); dim++) ans[dim] = PartiDeriv(x, dim, dx[dim], f);
 	return ans;
 }
-template<typename F>
-double Div(Mat<>& x, Mat<>& dx, F&& f0, F&& f1, F&& f2) {
+double Div(Mat<>& x, Mat<>& dx, double(*f0)(Mat<>& x), double(*f1)(Mat<>& x), double(*f2)(Mat<>& x)) {
 	double ans = 0;
 	ans += PartiDeriv(x, 0, dx[0], f0);
 	ans += PartiDeriv(x, 1, dx[1], f1);
 	ans += PartiDeriv(x, 2, dx[2], f2);
 	return ans;
 }
-template<typename F>
-Mat<>& Curl(Mat<>& x, Mat<>& dx, F&& f0, F&& f1, F&& f2, Mat<>& ans) {
+Mat<>& Curl(Mat<>& x, Mat<>& dx, double(*f0)(Mat<>& x), double(*f1)(Mat<>& x), double(*f2)(Mat<>& x), Mat<>& ans) {
 	ans.alloc(x.rows);
 	ans[0] = PartiDeriv(x, 1, dx[1], f2) - PartiDeriv(x, 2, dx[2], f1);
 	ans[1] = PartiDeriv(x, 2, dx[2], f0) - PartiDeriv(x, 0, dx[0], f2);
@@ -365,11 +363,6 @@ Tensor<double>* PoissonEquation(Mat<>& st, Mat<>& ed, Mat<>& delta, F&& f) {
 /******************************************************************************
 *                    波动方程
 *	[定义]: a ▽²u = ∂²u/∂t²
-			Laplace 算子 ▽² ≡ ∂²/∂x² + ∂²/∂y² + ∂²/∂z² + ...
-		边界条件:
-			[1] u (r,t = 0) = f(r)		//初位置
-			[2] ∂u(r,t = 0)/∂t = g(r)	//初速度
-			[3]	u(a,t) = b				//边界值
 *	[算法]: 有限差分法
 		u(t+1,...) = 2·u(t,...) - u(t-1,...)
 				+ Δt²·a{[u(x+1,...) - 2·u(x,...) + u(x-1,...)]/Δx² + ...}
@@ -389,19 +382,9 @@ Tensor<double>* PoissonEquation(Mat<>& st, Mat<>& ed, Mat<>& delta, F&& f) {
 		u(t+1,...) = 2·u(t,...) - u(t-1,...)+Δt²·a{ [u(x + 1,...) - 2·u(x,...) + u(x - 1,...)] / Δx² + ... }
 	[*] 暂时只二维
 ******************************************************************************/
-void WaveEquation(Mat<>& u, Mat<>& dudt, void (*boundaryFunc) (Mat<>& u, int time),
-	double A, double dt, double dx, double dy, int tEd) {
-	Mat<> uPrev = u;
-	for (int t = 1; t < tEd; t++) {
-		for (int y = 1; y < u.cols - 1; y++) 
-			for (int x = 1; x < u.rows - 1; x++)
-				uPrev(x, y) += (t == 0 ? dudt(x, y) * dt : -2 * u(x, y))
-				+ A * dt * dt * (
-				  (u(x + 1, y) - 2 * u(x, y) + u(x - 1, y)) / (dx * dx)
-				+ (u(x, y + 1) - 2 * u(x, y) + u(x, y - 1)) / (dy * dy)
-				);
-		boundaryFunc(u.swap(uPrev), t);
-	}
+template<typename F>
+inline double WaveEquation(Mat<>& x, Mat<>& dx, double t, double dt, double A, F&& u) {
+	return 2 * u(x, t) - u(x, t - dt) + A * dt * dt * LaplaceOperator(x, dx, u);
 }
 /******************************************************************************
 *                    扩散方程
