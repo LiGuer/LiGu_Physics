@@ -371,8 +371,8 @@ Tensor<double>* PoissonEquation(Mat<>& st, Mat<>& ed, Mat<>& delta, F&& f) {
 		Mat<> u(N, N), u_pre(N, N), x(2), dx(2);  dx.fill(2);
 		for (int i = 0; i < u.size(); i++) {
 			x.getData(u.i2x(i) * dx[0], u.i2y(i) * dx[1]);
-			upre[i] = Calculus::WaveEquation( x, dx, 0, 1, 1,
-				[&u, &upre, &dx](Mat<>& pos, double t = 0) {
+			u_pre[i] = Calculus::WaveEquation( x, dx, 0, 1, 1,
+				[&u, &u_pre, &dx](Mat<>& pos, double t = 0) {
 					int x = pos[0] / dx[0],
 						y = pos[1] / dx[1];
 					if (x < 0 || y < 0 || x >= N || y >= N) return 0.0;
@@ -393,6 +393,10 @@ inline double WaveEquation(Mat<>& x, Mat<>& dx, double t, double dt, double A, F
 		u(t+1,...) = u(t,r)
 				+ Δt·a{[u(x+1,...) - 2·u(x,...) + u(x-1,...)]/Δx² + ...}
 ******************************************************************************/
+template<typename F>
+inline double DiffusionEquation(Mat<>& x, Mat<>& dx, double t, double dt, double A, F&& u) {
+	return u(x, t) + A * dt * LaplaceOperator(x, dx, u);
+}
 /*#############################################################################
 
 								插值拟合
