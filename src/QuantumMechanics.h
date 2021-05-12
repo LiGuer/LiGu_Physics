@@ -15,7 +15,7 @@
 		  Therefore, the wave function is an eigenfunction of the Hamiltonian operator
 		  with corresponding eigenvalue(s) E.
 *	[算法]: 有限差分法
-		* ∂ψ/∂x = [ψ(x+1,...) - ψ(x-1,...)] / 2Δt
+		* ∂ψ/∂x   = [ψ(x+1,...) - ψ(x-1,...)] / 2Δt
 		* ∂²ψ/∂x² = [ψ(x+1,...) - 2·ψ(x,...) + ψ(x-1,...)] / Δt²
 ******************************************************************************/
 void Schrodinger_1D(double m, double dx, double xs, double xe, double(*U)(double x)

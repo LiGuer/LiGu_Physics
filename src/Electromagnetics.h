@@ -2,9 +2,49 @@
 #define ELECTROMAGNETICS_H
 #include "../../LiGu_AlgorithmLib/Mat.h"
 #include "../../LiGu_AlgorithmLib/Tensor.h"
+#include "Calculus.h"
+/******************************************************************************
+*                    计算电磁学 -  FDTD
+*	[公式]: 麦克斯韦方程组 (旋度那两个)
+	[1] ▽ × H = ∂D/∂y + J
+		∂Hz/∂y - ∂Hy/∂z = ε∂Ex/∂t + σEx
+		∂Hx/∂z - ∂Hz/∂x = ε∂Ey/∂t + σEy
+		∂Hy/∂x - ∂Hx/∂y = ε∂Ez/∂t + σEz
+	[2] ▽ × E = - ∂B/∂y - Jm
+		∂Ez/∂y - ∂Ey/∂z =-μ∂Hx/∂t - σHx
+		∂Ex/∂z - ∂Ez/∂x =-μ∂Hy/∂t - σHy
+		∂Ey/∂x - ∂Ex/∂y =-μ∂Hz/∂t - σHz
+******************************************************************************/
+template<typename FEx, typename FEy, typename FEz, typename FHx, typename FHy, typename FHz>
+void Electromagnetics(Mat<>& x, Mat<>& dx, double dt, 
+	FEx&& Ex, FEy&& Ey, FEz&& Ez, FHx&& Hx, FHy&& Hy, FHz&& Hz,
+	Mat<>& E_ans, Mat<>& H_ans, double mu = 1, double ep = 1, double sigmaE = 0, double sigmaM = 0
+) {
+	double
+		t1 = sigmaE * dt / 2 / ep, CA = (1 - t1) / (1 + t1), CB = dt / ep / (1 + t1),
+		t2 = sigmaM * dt / 2 / mu, CP = (1 - t2) / (1 + t2), CQ =-dt / mu / (1 + t2);
+	Mat<> tMat, H(x.rows), E(x.rows);
+	H_ans.add(H_ans.mult(CP, H.getData(Ex(x), Ey(x), Ez(x))), tMat.mult(CQ, Calculus::Curl(x, dx, Ex, Ey, Ez, tMat)));
+	E_ans.add(E_ans.mult(CA, E.getData(Ex(x), Ey(x), Ez(x))), tMat.mult(CB, Calculus::Curl(x, dx, Hx, Hy, Hz, tMat)));
+}
+/******************************************************************************
+*                   Eular 理想流体方程
+*	[公式]: ∂\vec u/∂t + (\vec v·▽)\vec v = - 1/ρ·▽p + \vec g
+		分量式:
+			∂u_x/∂t + v_x·∂v_x/∂x+ v_y·∂v_x/∂y + v_z·∂v_x/∂z = - 1/ρ·∂p/∂x + g_x
+*****************************************************************************
+template<typename F1, typename F2, typename F3, typename F4>
+Mat<>& Eular(Mat<>& x, Mat<>& dx, double density, F1&& vx, F2&& vy, F3&& vz, F4&& p, Mat<>& g, Mat<>& ans) {
+	(Calculus::Grad(x, dx, p, ans) *= -1 / density) += g;
+	Mat<> GradVx, GradVy, GradVz, vt;
+	vt.zero(3).getData(vx(x), vy(y), vz(z));
+	ans[0] -= vx.dot(Grad(x, dx, vx, GradVx));
+	ans[1] -= vy.dot(Grad(x, dx, vy, GradVy));
+	ans[2] -= vz.dot(Grad(x, dx, vz, GradVz));
+	return ans;
+}*/
 /*----------------[ Electrostatic Field 静电场 ]----------------
-*	[定义]: 
-*	[静电场 麦克斯韦方程组]: ▽·E = ρ/ε0    ▽×E = 0
+*	[公式]: ▽·E = ρ/ε0    ▽×E = 0
 	[电势]: E = -▽φ
 		=>	▽²φ = -ρ/ε0		Poisson's方程
 		当ρ=0时, ▽²φ = 0	 Laplace's方程
@@ -17,72 +57,12 @@
 **----------------------------------------------------------------------*/
 
 /*----------------[ Magnetostatic Field 恒磁场 ]----------------
-*	[定义]: 
-*	[恒磁场 麦克斯韦方程组]: ▽·H = 0    ▽×H = 4π/c·J
+*	[公式]: ▽·H = 0    ▽×H = 4π/c·J
 	[磁矢势]: H = -▽×A		(▽·A = 0)
 		=>	▽²A = -4π/c·J		Poisson's方程
 	[算法]: 即 解Poisson's方程，格林函数, 得 A = 1/c ∫∫∫ J/r dV
 		//Tensor<double>* PoissonEquation(Mat<double>st, Mat<double>ed, Mat<double> delta, double (*f) (Mat<double>& x));
 **----------------------------------------------------------------------*/
-
-
-/*----------------[ ElecmagnCell 电磁场基本结构体 ]----------------*/
-struct ElecmagnCell
-{
-	double E[3] = { 0 }, H[3] = { 0 },			// 电场,磁场(三维)
-		   sigmaE = 0, sigmaM = 0,				// 电导率,磁导率	// J =σE  Jm =σm H 
-		   epsilon = 8.85E-12, mu = 1.2567E-6;	// ε介电常数,μ磁导系数 // D =εE  B =μH
-};
-/*----------------[ ComputationalElectromagnetics -  FDTD ]----------------
-*	[方程]: 麦克斯韦方程组 (旋度那两个)
-	[1] ▽ × H = ∂D/∂y + J
-		∂Hz/∂y - ∂Hy/∂z = ε∂Ex/∂t + σEx
-		∂Hx/∂z - ∂Hz/∂x = ε∂Ey/∂t + σEy
-		∂Hy/∂x - ∂Hx/∂y = ε∂Ez/∂t + σEz
-	[2] ▽ × E = - ∂B/∂y - Jm
-		∂Ez/∂y - ∂Ey/∂z =  - μ∂Hx/∂t - σHx
-		∂Ex/∂z - ∂Ez/∂x =  - μ∂Hy/∂t - σHy
-		∂Ey/∂x - ∂Ex/∂y =  - μ∂Hz/∂t - σHz
-**----------------------------------------------------------------------*/
-void Electromagnetics(Tensor<ElecmagnCell>& Map, void (*setBoundaryValue) (Tensor<ElecmagnCell>& x, double t), double dt, double* dx, int EndTimes) {
-	Tensor<ElecmagnCell> Mapprev = Map;
-	for (int t = 0; t < EndTimes; t++) {
-		for (int z = 1; z < Map.dim[2] - 1; z++) {
-			for (int y = 1; y < Map.dim[1] - 1; y++) {
-				for (int x = 1; x < Map.dim[0] - 1; x++) {
-					int r[] = { x,y,z },
-						rl[3][3] = { { x - 1,y,z },{ x,y - 1,z },{ x,y,z - 1 } },
-						rr[3][3] = { { x + 1,y,z },{ x,y + 1,z },{ x,y,z + 1 } };
-					// CA,CB
-					double CA = 1 - Map(r).sigmaE * dt / 2 / Map(r).epsilon,
-						   CB = dt / Map(r).epsilon;
-					CA /= 1 + Map(r).sigmaE * dt / 2 / Map(r).epsilon;
-					CB /= 1 + Map(r).sigmaE * dt / 2 / Map(r).epsilon;
-					// CP,CQ
-					double CP = 1 - Map(r).sigmaM * dt / 2 / Map(r).mu,
-						   CQ =  - dt / Map(r).mu;
-					CP /= 1 + Map(r).sigmaM * dt / 2 / Map(r).mu;
-					CQ /= 1 + Map(r).sigmaM * dt / 2 / Map(r).mu;
-					for (int i = 0; i < 3; i++) {					//先算H 后算E, H要比E相差1/2
-						// H(t+1)	// ∂Ez/∂y - ∂Ey/∂z		∂Ex/∂z - ∂Ez/∂x		∂Ey/∂x - ∂Ex/∂y
-						Map(r).H[i] = CP * Map(r).H[i] + CQ * (
-						  (Mapprev(rr[(i + 1) % 3]).E[(i + 2) % 3] - Mapprev(r).E[(i + 2) % 3]) / dx[(i + 1) % 3]
-						- (Mapprev(rr[(i + 2) % 3]).E[(i + 1) % 3] - Mapprev(r).E[(i + 1) % 3]) / dx[(i + 2) % 3]
-						);
-					}
-					for (int i = 0; i < 3; i++) {
-						// E(t+1)	// ∂Hz/∂y - ∂Hy/∂z		∂Hx/∂z - ∂Hz/∂x		∂Hy/∂x - ∂Hx/∂y
-						Map(r).E[i] = CA * Map(r).E[i] + CB * (
-						  (Mapprev(r).H[(i + 2) % 3] - Mapprev(rl[(i + 1) % 3]).H[(i + 2) % 3]) / dx[(i + 1) % 3]
-						- (Mapprev(r).H[(i + 1) % 3] - Mapprev(rl[(i + 2) % 3]).H[(i + 1) % 3]) / dx[(i + 2) % 3]
-						);
-					}
-				}
-			}
-		}setBoundaryValue(Map, t * dt);
-		Mapprev = Map;
-	}
-}
 
 
 #endif

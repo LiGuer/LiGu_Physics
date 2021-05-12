@@ -134,14 +134,16 @@ Mat<>& Grad(Mat<>& x, Mat<>& dx, F&& f, Mat<>& ans) {
 	for (int dim = 0; dim < x.size(); dim++) ans[dim] = PartiDeriv(x, dim, dx[dim], f);
 	return ans;
 }
-double Div(Mat<>& x, Mat<>& dx, double(*f0)(Mat<>& x), double(*f1)(Mat<>& x), double(*f2)(Mat<>& x)) {
+template<typename FX, typename FY, typename FZ>
+double Div(Mat<>& x, Mat<>& dx, FX&& fx, FY&& fy, FZ&& fz) {
 	double ans = 0;
-	ans += PartiDeriv(x, 0, dx[0], f0);
-	ans += PartiDeriv(x, 1, dx[1], f1);
-	ans += PartiDeriv(x, 2, dx[2], f2);
+	ans += PartiDeriv(x, 0, dx[0], fx);
+	ans += PartiDeriv(x, 1, dx[1], fy);
+	ans += PartiDeriv(x, 2, dx[2], fz);
 	return ans;
 }
-Mat<>& Curl(Mat<>& x, Mat<>& dx, double(*f0)(Mat<>& x), double(*f1)(Mat<>& x), double(*f2)(Mat<>& x), Mat<>& ans) {
+template<typename FX, typename FY, typename FZ>
+Mat<>& Curl(Mat<>& x, Mat<>& dx, FX&& f0, FY&& f1, FZ&& f2, Mat<>& ans) {
 	ans.alloc(x.rows);
 	ans[0] = PartiDeriv(x, 1, dx[1], f2) - PartiDeriv(x, 2, dx[2], f1);
 	ans[1] = PartiDeriv(x, 2, dx[2], f0) - PartiDeriv(x, 0, dx[0], f2);
