@@ -9,11 +9,17 @@
 
 ## <Calculus.h> 微积分 / 微分方程
 ```
+---------------- 微分 ----------------
 double diff		(double x0, double(*f)(double x), int N = 1, double dx = 1E-3);		\\导数 (N阶)
 double diff_	(double x0, double(*f)(double x), int N = 1, double dx = 1E-3);
 double Curvature(double x0, double(*y)(double x),			 double dx = 1E-3);		\\曲率
 double PartiDeriv	(Mat<>& x, int index, double dx, double(*func)(Mat<>& x));		\\偏导数
 double PartiDeriv2	(Mat<>& x, int index, double dx, double(*func)(Mat<>& x));		\\偏导数 (2阶)
+double LaplaceOperator	(Mat<>& x, Mat<>& dx, F&& f);								\\Laplace算子
+Mat<>& Grad		(Mat<>& x, Mat<>& dx, F&& f, Mat<>& ans);							\\梯度
+double Div		(Mat<>& x, Mat<>& dx, FX&& fx, FY&& fy, FZ&& fz);					\\散度
+Mat<>& Curl		(Mat<>& x, Mat<>& dx, FX&& f0, FY&& f1, FZ&& f2, Mat<>& ans);		\\旋度
+---------------- 级数展开 ------------
 Mat<>& TaylorFormula(double x0, double(*f)(double x), Mat<>& Coeff, int N = 3);		\\Taylor展开
 double Exp		(double x, int N = 18);												\\常用函数
 double Sin		(double x, int N = 18);
@@ -21,10 +27,13 @@ double Cos		(double x, int N = 18);
 double lnOneAdd	(double x, int N = 18);
 double Arctan	(double x, int N = 18);
 double PowOneAdd(double x, double p, int N = 18);
-void   RungeKutta(Mat<>& y, double dt, double t0, int enpoch, Mat<>& (*derivY)(double t, Mat<>& y));
-																					\\解微分方程: RungeKutta法
-	   PoissonEquation();															\\Poisson's方程
-	   WaveEquation();																\\波动方程
+---------------- 积分 ----------------
+double integral(double xSt, double xEd, F&& f, int n);								\\积分
+---------------- 微分方程 ------------
+void   RungeKutta			(Mat<>& y, double dx, double x0, F&& f, int enpoch = 1);		\\解常微分方程组: RungeKutta法
+double PoissonEquation		(Mat<>& x, Mat<>& dx, F&& u);									\\Poisson's方程
+double WaveEquation			(Mat<>& x, Mat<>& dx, double t, double dt, double A, F&& u);	\\波动方程
+double DiffusionEquation	(Mat<>& x, Mat<>& dx, double t, double dt, double A, F&& u);	\\扩散方程
 ```
 
 ## <Dynamics.h> 动力学类

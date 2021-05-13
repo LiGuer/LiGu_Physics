@@ -14,6 +14,10 @@ double diff_	(double x0, double(*f)(double x), int N = 1, double dx = 1E-3);
 double Curvature(double x0, double(*y)(double x),			 double dx = 1E-3);		\\曲率
 double PartiDeriv	(Mat<>& x, int index, double dx, double(*func)(Mat<>& x));		\\偏导数
 double PartiDeriv2	(Mat<>& x, int index, double dx, double(*func)(Mat<>& x));		\\偏导数 (2阶)
+double LaplaceOperator	(Mat<>& x, Mat<>& dx, F&& f);								\\Laplace算子
+Mat<>& Grad		(Mat<>& x, Mat<>& dx, F&& f, Mat<>& ans);							\\梯度
+double Div		(Mat<>& x, Mat<>& dx, FX&& fx, FY&& fy, FZ&& fz);					\\散度
+Mat<>& Curl		(Mat<>& x, Mat<>& dx, FX&& f0, FY&& f1, FZ&& f2, Mat<>& ans);		\\旋度
 ---------------- 级数展开 ------------
 Mat<>& TaylorFormula(double x0, double(*f)(double x), Mat<>& Coeff, int N = 3);		\\Taylor展开
 double Exp		(double x, int N = 18);												\\常用函数
@@ -25,10 +29,10 @@ double PowOneAdd(double x, double p, int N = 18);
 ---------------- 积分 ----------------
 double integral(double xSt, double xEd, F&& f, int n);								\\积分
 ---------------- 微分方程 ------------
-void   RungeKutta(Mat<>& y, double dx, double x0, Mat<>& (*derivY)(double x, Mat<>& y), int enpoch = 1);
-																					\\解常微分方程组: RungeKutta法
-	   PoissonEquation();															\\Poisson's方程
-	   WaveEquation();																\\波动方程
+void   RungeKutta			(Mat<>& y, double dx, double x0, F&& f, int enpoch = 1);		\\解常微分方程组: RungeKutta法
+double PoissonEquation		(Mat<>& x, Mat<>& dx, F&& u);									\\Poisson's方程
+double WaveEquation			(Mat<>& x, Mat<>& dx, double t, double dt, double A, F&& u);	\\波动方程
+double DiffusionEquation	(Mat<>& x, Mat<>& dx, double t, double dt, double A, F&& u);	\\扩散方程
 ******************************************************************************/
 namespace Calculus {
 #define PI 3.141592653589
@@ -325,7 +329,7 @@ void RungeKutta(Mat<>& y, double dx, double x0, F&& f, int enpoch = 1) {
 /******************************************************************************
 *                    Poisson's方程
 *	[定义]: Δφ = f
-		流形属于Euclidean空间时, 写成 ▽²φ = f
+			▽²φ = f  (Euclidean空间)
 		三维直角坐标系中 (∂²/∂x² + ∂²/∂y² + ∂²/∂z²) φ(x,y,z) = f(x,y,z)
 		当f ≡ 0, 得到 Laplace's方程
 	[解法]:  Green's函数  φ(r) = - ∫∫∫ f(rt) / 4π|r-rt| d³rt    ,r rt为矢量
@@ -333,6 +337,9 @@ void RungeKutta(Mat<>& y, double dx, double x0, F&& f, int enpoch = 1) {
 		对于各种边界条件，Poisson's方程可能有许多种解，但每个解的梯度相同.
 		静电场情况下, 意味着在边界条件下的满足Poisson's方程的势函数，所解得的电场唯一确定.
 ******************************************************************************/
+template<typename F>
+double PoissonEquation(Mat<>& x, Mat<>& dx, F&& f) {
+}
 template<typename F>
 Tensor<double>* PoissonEquation(Mat<>& st, Mat<>& ed, Mat<>& delta, F&& f) {
 	// init
@@ -368,8 +375,13 @@ Tensor<double>* PoissonEquation(Mat<>& st, Mat<>& ed, Mat<>& delta, F&& f) {
 *	[算法]: 有限差分法
 		u(t+1,...) = 2·u(t,...) - u(t-1,...)
 				+ Δt²·a{[u(x+1,...) - 2·u(x,...) + u(x-1,...)]/Δx² + ...}
+*                    扩散方程
+*	[定义]: a ▽²u = ∂u/∂t
+	[算法]: 有限差分法
+		u(t+1,...) = u(t,r)
+				+ Δt·a{[u(x+1,...) - 2·u(x,...) + u(x-1,...)]/Δx² + ...}
 -------------------------------------------------------------------------------
-*	[Example]:
+*	[Example]: //波动方程
 		Mat<> u(N, N), u_pre(N, N), x(2), dx(2);  dx.fill(2);
 		for (int i = 0; i < u.size(); i++) {
 			x.getData(u.i2x(i) * dx[0], u.i2y(i) * dx[1]);
@@ -385,18 +397,11 @@ Tensor<double>* PoissonEquation(Mat<>& st, Mat<>& ed, Mat<>& delta, F&& f) {
 		u.swap(u_pre); u(N / 2, N / 2) = sin(t / (2 * PI));
 ******************************************************************************/
 template<typename F>
-inline double WaveEquation(Mat<>& x, Mat<>& dx, double t, double dt, double A, F&& u) {
+inline double WaveEquation		(Mat<>& x, Mat<>& dx, double t, double dt, double A, F&& u) {
 	return 2 * u(x, t) - u(x, t - 1) + A * dt * dt * LaplaceOperator(x, dx, u);
 }
-/******************************************************************************
-*                    扩散方程
-*	[定义]: a ▽²u = ∂u/∂t
-	[算法]: 有限差分法
-		u(t+1,...) = u(t,r)
-				+ Δt·a{[u(x+1,...) - 2·u(x,...) + u(x-1,...)]/Δx² + ...}
-******************************************************************************/
 template<typename F>
-inline double DiffusionEquation(Mat<>& x, Mat<>& dx, double t, double dt, double A, F&& u) {
+inline double DiffusionEquation	(Mat<>& x, Mat<>& dx, double t, double dt, double A, F&& u) {
 	return u(x, t) + A * dt * LaplaceOperator(x, dx, u);
 }
 /*#############################################################################
