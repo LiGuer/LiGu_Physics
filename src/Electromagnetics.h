@@ -53,6 +53,33 @@ void Electromagnetics(Mat<>& x, Mat<>& dx, double dt,
 	);
 }
 /******************************************************************************
+						静电场
+*	[公式]: ▽²φ = -ρ/ε0
+		电场=> E = -▽φ	▽·E = ρ/ε0    ▽×E = 0
+*	[算法]:	Poisson's方程		
+		当ρ=0时, ▽²φ = 0		Laplace's方程
+		解Poisson's方程，Green's函数，得 φ(r) = - 4π/ε0 ∫∫∫ f(rt) / |r-rt| d³rt
+*	[静电场唯一性定理]:
+		对于各种边界条件，Poisson's方程可能有许多种解，但每个解的梯度相同.
+		静电场下, 意味边界条件下满足Poisson's方程的势函数，所解得电场唯一确定.
+-------------------------------------------------------------------------------
+*	[Example]:
+	Mat<> Phi(N, N), x(2), dx(2), St(2), Ed(2); dx.fill(1); Ed.fill(N);
+		for (int i = 0; i < Phi.size(); i++)
+			Phi[i] = Calculus::PoissonEquation( x.getData(Phi.i2x(i), Phi.i2y(i)), dx, St, Ed, [](Mat<>& x) { return sin(x.norm() / (10 * 2 * PI)); });
+		Mat<> Ex(N, N), Ey(N, N),Et(2);
+		for (int i = 0; i < Phi.size(); i++) {
+			Calculus::Grad(x.getData(Phi.i2x(i), Phi.i2y(i)), dx, [&Phi](Mat<>& _x) {
+				int x = _x[0], y = _x[1];
+				x = x >= N ? N - 1 : x; x = x < 0 ? 0 : x;
+				y = y >= N ? N - 1 : y; y = y < 0 ? 0 : y;
+				return Phi(x, y);
+			}, Et); Ex[i] = Et[0]; Ey[i] = Et[1];
+		}
+******************************************************************************/
+
+
+/******************************************************************************
 *                   Eular 理想流体方程
 *	[公式]: ∂\vec u/∂t + (\vec v·▽)\vec v = - 1/ρ·▽p + \vec g
 		分量式:
@@ -68,18 +95,6 @@ Mat<>& Eular(Mat<>& x, Mat<>& dx, double density, F1&& vx, F2&& vy, F3&& vz, F4&
 	ans[2] -= vz.dot(Calculus::Grad(x, dx, vz, GradVz));
 	return ans;
 }
-/*----------------[ Electrostatic Field 静电场 ]----------------
-*	[公式]: ▽·E = ρ/ε0    ▽×E = 0
-	[电势]: E = -▽φ
-		=>	▽²φ = -ρ/ε0		Poisson's方程
-		当ρ=0时, ▽²φ = 0		Laplace's方程
-		[三维直角坐标系]: ∂²φ/∂x² + ∂²φ/∂y² + ∂²φ/∂z² = -1/ε0·ρ(x,y,z)
-	[算法]: 即 解Poisson's方程，格林函数，得 φ(r) = - 4π/ε0 ∫∫∫ f(rt) / |r-rt| d³rt
-		//Tensor<double>* PoissonEquation(Mat<double>st, Mat<double>ed, Mat<double> delta, double (*f) (Mat<double>& x));
-	[静电场唯一性定理]:
-		对于各种边界条件，Poisson's方程可能有许多种解，但每个解的梯度相同. 
-		静电场情况下, 意味着在边界条件下的满足泊松方程的势函数，所解得的电场确定且唯一.
-**----------------------------------------------------------------------*/
 
 /*----------------[ Magnetostatic Field 恒磁场 ]----------------
 *	[公式]: ▽·H = 0    ▽×H = 4π/c·J

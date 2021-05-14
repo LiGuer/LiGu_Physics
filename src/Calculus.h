@@ -349,9 +349,15 @@ void RungeKutta(Mat<>& y, double dx, double x0, F&& f, int enpoch = 1) {
 		三维直角坐标系中 (∂²/∂x² + ∂²/∂y² + ∂²/∂z²) φ(x,y,z) = f(x,y,z)
 		当f ≡ 0, 得到 Laplace's方程
 	[解法]:  Green's函数  φ(r) = - ∫∫∫ f(rt) / 4π|r-rt| d³rt    ,r rt为矢量
-	[唯一性定理]:
-		对于各种边界条件，Poisson's方程可能有许多种解，但每个解的梯度相同.
-		静电场情况下, 意味着在边界条件下的满足Poisson's方程的势函数，所解得的电场唯一确定.
+-------------------------------------------------------------------------------
+*	[Example]: 
+	Mat<> Phi(N, N), x(2), dx(2), St(2), Ed(2); dx.fill(1); Ed.fill(N);
+	for (int i = 0; i < Phi.size(); i++)
+		Phi[i] = Calculus::PoissonEquation(
+			x.getData(Phi.i2x(i), Phi.i2y(i)), dx, St, Ed, [](Mat<>& x) {
+				return sin(x.norm() / (10 * 2 * PI));
+			}
+		);
 ******************************************************************************/
 template<typename F>
 double PoissonEquation(Mat<>& x, Mat<>& dx, Mat<>& St, Mat<>& Ed, F&& f) {
