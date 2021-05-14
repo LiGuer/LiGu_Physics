@@ -97,12 +97,12 @@ void run(Mat<>& x, Mat<>&dx, double dt, int enpoch, void(*AcceleFun)(Mat<>& x, M
 				kdx = kidx;					dxTmp.add(dx, kidx *= dt / 2);
 			}
 			if (k == 1) {
-				kx  += tmp.mult(2, kix );	 xTmp.add( x, kix  *= dt / 2);
-				kdx += tmp.mult(2, kidx);	dxTmp.add(dx, kidx *= dt / 2);	
+				kx  += tmp.mul(2, kix );	 xTmp.add( x, kix  *= dt / 2);
+				kdx += tmp.mul(2, kidx);	dxTmp.add(dx, kidx *= dt / 2);	
 			}
 			if (k == 2) {
-				kx  += tmp.mult(2, kix);	 xTmp.add( x, kix  *= dt);
-				kdx += tmp.mult(2, kidx);	dxTmp.add(dx, kidx *= dt);
+				kx  += tmp.mul(2, kix);		 xTmp.add( x, kix  *= dt);
+				kdx += tmp.mul(2, kidx);	dxTmp.add(dx, kidx *= dt);
 			}
 			if (k == 3) {
 				kx  += kix ;
@@ -139,16 +139,16 @@ void run(Mat<>* r, Mat<>* v, double* mass, int N, double dt, int enpoch,
 					kv[i] = kiv[i];
 				}
 				else if (k < 3) {
-					kr[i] += tmp.mult(2, kir[i]);
-					kv[i] += tmp.mult(2, kiv[i]);
+					kr[i] += tmp.mul(2, kir[i]);
+					kv[i] += tmp.mul(2, kiv[i]);
 				}
 				else {
 					kr[i] += kir[i];
 					kv[i] += kiv[i];
 				}
 				if (k < 3) {
-					rt[i].add(r[i], tmp.mult(dt / 2, kir[i]));
-					vt[i].add(v[i], tmp.mult(dt / 2, kiv[i]));
+					rt[i].add(r[i], tmp.mul(dt / 2, kir[i]));
+					vt[i].add(v[i], tmp.mul(dt / 2, kiv[i]));
 				}
 			}
 		}
@@ -182,8 +182,8 @@ double MassCentre(Mat<>* r, Mat<>* v, double* m, int N, Mat<>& rc, Mat<>& vc) {
 	Mat<> tmp;
 	double mc = 0;
 	for (int i = 0; i < N; i++) {
-		rc += tmp.mult(m[i], r[i]);
-		vc += tmp.mult(m[i], v[i]);
+		rc += tmp.mul(m[i], r[i]);
+		vc += tmp.mul(m[i], v[i]);
 		mc += m[i];
 	}
 	rc *= 1 / mc;

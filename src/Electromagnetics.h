@@ -44,12 +44,12 @@ void Electromagnetics(Mat<>& x, Mat<>& dx, double dt,
 		   t2 = sigmaM * dt / 2 / mu;
 	Mat<> tMat;
 	H_ans.add(
-		H_ans.mult((1 - t2) / (1 + t2), H_ans.alloc(x.rows).getData(Ex(x), Ey(x), Ez(x))),
-		tMat. mult(-dt / mu / (1 + t2), Calculus::Curl(x, dx, Ex, Ey, Ez, tMat))
+		H_ans.mul((1 - t2) / (1 + t2), H_ans.alloc(x.rows).getData(Ex(x), Ey(x), Ez(x))),
+		tMat. mul(-dt / mu / (1 + t2), Calculus::Curl(x, dx, Ex, Ey, Ez, tMat))
 	);
 	E_ans.add(
-		E_ans.mult((1 - t1) / (1 + t1), E_ans.alloc(x.rows).getData(Ex(x), Ey(x), Ez(x))), 
-		tMat. mult( dt / ep / (1 + t1), Calculus::Curl(x, dx, Hx, Hy, Hz, tMat))
+		E_ans.mul((1 - t1) / (1 + t1), E_ans.alloc(x.rows).getData(Ex(x), Ey(x), Ez(x))), 
+		tMat. mul( dt / ep / (1 + t1), Calculus::Curl(x, dx, Hx, Hy, Hz, tMat))
 	);
 }
 /******************************************************************************

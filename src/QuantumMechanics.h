@@ -32,12 +32,12 @@ void Schrodinger_1D(double m, double dx, double xs, double xe, double(*U)(double
 		if (i > 0)D2(i, i - 1) = 1;
 		if (i < N - 1)D2(i, i + 1) = 1;
 	}
-	D2.mult(1.0 / (dx * dx), D2);
+	D2.mul(1.0 / (dx * dx), D2);
 	D2(0, 0) = D2(0, 1) = D2(1, 0) = 0;								//So that f(xs) = 0
 	D2(N - 1, N - 2) = D2(N - 2, N - 1) = D2(N - 1, N - 1) = 0;		//So that f(xe) = 0
 	// Hamiltonian算子
 	Mat<double> H;
-	H.add(H.mult(-hbar * hbar / (2 * m), D2), U0);
+	H.add(H.mul(-hbar * hbar / (2 * m), D2), U0);
 	// Time-independent Schrödinger
 	H.eig(1e-30, Psi, E);
 	E.diag(E);

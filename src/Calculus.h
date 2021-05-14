@@ -288,6 +288,22 @@ double integral(double xSt, double xEd, F&& f, int n) {
 	for (int i = 0; i < n; i++, xi += dx) ans += integral_NewtonCotes(xi, xi + dx, f);
 	return ans;
 }
+/******************************************************************************
+*                    重积分
+*	[定义]: ∫∫∫ f(r) dr³
+******************************************************************************/
+template<typename F>
+double multIntegral(Mat<>& dx, Mat<>&St, Mat<>& Ed, F&& f) {
+	Mat<> x = St;
+	double ans = 0, dx_n = dx.product();
+	while (true) {
+		int dim = 0; x[dim] += dx[dim];
+		while (dim <  dx.size() - 1 && x[dim] > Ed[dim]) { x[dim] = St[dim]; dim++; x[dim] += dx[dim]; }
+		if    (x[dx.size() - 1] > Ed[dx.size() - 1]) break;
+		ans += f(x) * dx_n;
+	}
+	return ans;
+}
 /*#############################################################################
 
 								微分方程
@@ -318,12 +334,12 @@ void RungeKutta(Mat<>& y, double dx, double x0, F&& f, int enpoch = 1) {
 	while (enpoch--) {
 		// k1, k2, k3 ,k4
 		k1 = f(x, y);
-		k2 = f(x + dx / 2, tmp.add(y, tmp.mult(dx / 2, k1)));
-		k3 = f(x + dx / 2, tmp.add(y, tmp.mult(dx / 2, k2)));
-		k4 = f(x + dx,     tmp.add(y, tmp.mult(dx,		k3)));
+		k2 = f(x + dx / 2, tmp.add(y, tmp.mul(dx / 2, k1)));
+		k3 = f(x + dx / 2, tmp.add(y, tmp.mul(dx / 2, k2)));
+		k4 = f(x + dx,     tmp.add(y, tmp.mul(dx,	   k3)));
 		// y[n+1] = y[n] + h/6·(k1 + 2·k2 + 2·k3 + k4)
-		k.add(k.add(k1, k4), tmp.mult(2, tmp.add(k2, k3)));
-		y.add(y, k.mult(dx / 6, k));
+		k.add(k.add(k1, k4), tmp.mul(2, tmp.add(k2, k3)));
+		y.add(y, k.mul(dx / 6, k));
 	};
 }
 /******************************************************************************
@@ -338,36 +354,11 @@ void RungeKutta(Mat<>& y, double dx, double x0, F&& f, int enpoch = 1) {
 		静电场情况下, 意味着在边界条件下的满足Poisson's方程的势函数，所解得的电场唯一确定.
 ******************************************************************************/
 template<typename F>
-double PoissonEquation(Mat<>& x, Mat<>& dx, F&& f) {
-}
-template<typename F>
-Tensor<double>* PoissonEquation(Mat<>& st, Mat<>& ed, Mat<>& delta, F&& f) {
-	// init
-	Mat<> tmp; tmp.sub(ed, st);
-	Mat<int> dim; dim.E(st.rows);
-	for (int i = 0; i < st.rows; i++) dim[i] = (int)(tmp[i] / delta[i]);
-	Tensor<double>* Map = new Tensor<double>(dim.rows, dim.data);
-	// compute Green's function
-	Mat<> r = st;
-	for (int i = 0; i < Map->dim.product(); i++) {
-		double t = 0;
-		Mat<> rt = st;
-		for (int j = 0; j < Map->dim.product(); j++) {
-			for (int k = 0; k < rt.rows; k++) {
-				rt[k] += delta[k]; 
-				if(rt[k] >= ed[k]) rt[k] = st[k]; 
-				else break;
-			}
-			t += f(rt) / tmp.sub(r, rt).norm();
-		}
-		(*Map)[i] = 1 / (4 * PI) * delta.product() * t;
-		// update r
-		for (int k = 0; k < r.rows; k++) {
-			r[k] += delta[k];
-			if (r[k] >= ed[k]) r[k] = st[k]; else break;
-		}
-	}
-	return Map;
+double PoissonEquation(Mat<>& x, Mat<>& dx, Mat<>& St, Mat<>& Ed, F&& f) {
+	Mat<> tmp; 
+	return multIntegral(dx, St, Ed, [&x, &f, &tmp](Mat<>& xt) {
+		return x == xt ? 0.0 : f(xt) / tmp.sub(x, xt).norm();
+	}) / (4 * PI);
 }
 /******************************************************************************
 *                    波动方程
