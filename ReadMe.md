@@ -28,10 +28,11 @@ double lnOneAdd	(double x, int N = 18);
 double Arctan	(double x, int N = 18);
 double PowOneAdd(double x, double p, int N = 18);
 ---------------- 积分 ----------------
-double integral(double xSt, double xEd, F&& f, int n);								\\积分
+double integral	(double xSt, double xEd, F&& f, int n);								\\积分
+double multIntegral	(Mat<>& dx, Mat<>&St, Mat<>& Ed, F&& f)							\\重积分
 ---------------- 微分方程 ------------
 void   RungeKutta			(Mat<>& y, double dx, double x0, F&& f, int enpoch = 1);		\\解常微分方程组: RungeKutta法
-double PoissonEquation		(Mat<>& x, Mat<>& dx, F&& u);									\\Poisson's方程
+double PoissonEquation		(Mat<>& x, Mat<>& dx, Mat<>& St, Mat<>& Ed, F&& f);				\\Poisson's方程
 double WaveEquation			(Mat<>& x, Mat<>& dx, double t, double dt, double A, F&& u);	\\波动方程
 double DiffusionEquation	(Mat<>& x, Mat<>& dx, double t, double dt, double A, F&& u);	\\扩散方程
 ```
