@@ -88,16 +88,20 @@ void Electromagnetics(Mat<>& x, Mat<>& dx, double dt,
 
 /******************************************************************************
 *                   Navier Stokes 流体方程
-*	[公式]: ∂\vec u/∂t + (\vec v·▽)\vec v =  + η/ρ▽²\vec v - 1/ρ·▽p + \vec g
+*	[公式]: ∂\vec u/∂t + (\vec v·▽)\vec v =  - 1/ρ·▽p  + \vec g
+				+ η/ρ▽²\vec v + (ζ + η/3)/ρ·▽(▽·\vec v)
+			η: 粘度    ρ: 密度
+			不可压缩流: ▽·\vec v ≡ 0
 ******************************************************************************/
 template<typename F1, typename F2, typename F3, typename F4>
-Mat<>& NavierStokesEquations(Mat<>& x, Mat<>& dx, double dt, double density, F1&& vx, F2&& vy, F3&& vz, F4&& p, Mat<>& g, Mat<>& ans) {
+Mat<>& NavierStokesEquations(Mat<>& x, Mat<>& dx, double dt, F1&& vx, F2&& vy, F3&& vz, F4&& p, Mat<>& g, Mat<>& ans,
+	double density = 1, double viscosity = 1
+) {
 	(Calculus::Grad(x, dx, p, ans) *= -1 / density) += g;
 	Mat<> vt(x.rows), tmp; vt.getData(vx(x), vy(x), vz(x));
-	ans[0] += -vt.dot(Calculus::Grad(x, dx, vx, tmp)) + Calculus::LaplaceOperator(x, dx, vx);
-	ans[1] += -vt.dot(Calculus::Grad(x, dx, vy, tmp)) + Calculus::LaplaceOperator(x, dx, vy);
-	ans[2] += -vt.dot(Calculus::Grad(x, dx, vz, tmp)) + Calculus::LaplaceOperator(x, dx, vz);
-	//if (ans[0] != 0)printf("%f \n", ans[0]);
+	ans[0] += -vt.dot(Calculus::Grad(x, dx, vx, tmp)) + viscosity / density * Calculus::LaplaceOperator(x, dx, vx);
+	ans[1] += -vt.dot(Calculus::Grad(x, dx, vy, tmp)) + viscosity / density * Calculus::LaplaceOperator(x, dx, vy);
+	ans[2] += -vt.dot(Calculus::Grad(x, dx, vz, tmp)) + viscosity / density * Calculus::LaplaceOperator(x, dx, vz);
 	ans.add(vt, (ans *= dt));
 	return ans;
 }
@@ -115,7 +119,6 @@ Mat<>& Eular(Mat<>& x, Mat<>& dx, double dt, double density, F1&& vx, F2&& vy, F
 	ans[0] += -vt.dot(Calculus::Grad(x, dx, vx, tmp));
 	ans[1] += -vt.dot(Calculus::Grad(x, dx, vy, tmp));
 	ans[2] += -vt.dot(Calculus::Grad(x, dx, vz, tmp));
-	//if (ans[0] != 0)printf("%f \n", ans[0]);
 	ans.add(vt, (ans *= dt));
 	return ans;
 }

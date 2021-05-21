@@ -219,46 +219,73 @@ double PowOneAdd(double x, double p, int N = 18) {
 *	[定义]: 离散Fourier变换的高效算法
 *	[公式]:
 		离散Fourier变换: X[k] = Σ_(n=0)^(N-1)  e^(-j2πnk/N)·x[n]
-*	[时间复杂度]: O(N·lgN)
+*	[时间复杂度]: O(N·logN)
+*	[算法]:
+		N-Point Model:
+				___________
+		x[0] —| N/2-Point |—> E[0] —×××> X[0]  (E[0],+O[0])
+		x[2] —|   DFT	   |—> E[1] —×××> X[1]  (E[1],+O[1])
+		x[4] —|		   |—> E[2] —×××> X[2]  (E[2],+O[2])
+		x[6] —|		   |—> E[3] —×××> X[3]  (E[3],+O[3])
+                ___________
+		x[1] —| N/2-Point |—> O[0] —×××> X[4]  (E[0],-O[0])
+		x[3] —|   DFT	   |—> O[1] —×××> X[5]  (E[1],-O[1])
+		x[5] —|		   |—> O[2] —×××> X[6]  (E[2],-O[2])
+		x[7] —|		   |—> O[3] —×××> X[7]  (E[3],-O[3])
+
+		(E[k],±O[k]) = E[k] ± W_N^K·O[k]
 *	[Reference]:
 		Thanks for https://www.math.wustl.edu/~victor/mfmm/fourier/fft.c
+-------------------------------------------------------------------------------
+*	[Example]:
+		#define N 256
+		std::complex<double> x[N], X[N], tmp[N];
+		double f1 = 2, f2 = 10, Ts = 1.0/100;			//信号频率、采样周期
+		for (int i = 0; i < N; i++)
+			x[i] = sin((double)i * Ts * 2 * PI * f1)
+				 + cos((double)i * Ts * 2 * PI * f2);
+		memcpy(X, x, sizeof(complex<double>) * N);
+		Calculus::FFT(X, N, tmp);
 ******************************************************************************/
-/*
-void FFT(std::complex<double>* v, int n, std::complex<double>* tmp) {
-	if (n > 1) return;
-	std::complex<double> z, w, * vo = tmp + n / 2, * ve = tmp;
+void FFT(std::complex<double>* x, int n, std::complex<double>* tmp) {
+	if (n <= 1) return;
+	std::complex<double> z, w, 
+		*xe = tmp,								//FFT 偶数序列 E[] 
+		*xo = tmp + n / 2; 						//FFT 奇数序列 O[] 		
 	for (int k = 0; k < n / 2; k++) {
-		ve[k] = v[2 * k];
-		vo[k] = v[2 * k + 1];
+		xe[k] = x[2 * k];
+		xo[k] = x[2 * k + 1];
 	}
-	FFT(ve, n / 2, v);							//FFT 偶数序列 v[] 
-	FFT(vo, n / 2, v);							//FFT 奇数序列 v[] 
+	FFT(xe, n / 2, x);							//N/2 DFT
+	FFT(xo, n / 2, x);
 	for (int m = 0; m < n / 2; m++) {
-		w.real = cos(2 * PI * m / (double)n);
-		w.imag =-sin(2 * PI * m / (double)n);
-		z			 = w * vo[m];
-		v[m]		 = ve[m] + z;
-		v[m + n / 2] = ve[m] - z;
+		w =     cos(2 * PI * m / (double)n)		//W_N^K
+		+ 1i * -sin(2 * PI * m / (double)n);
+		z			 = w * xo[m];				//W_N^K·O[k]
+		x[m]		 = xe[m] + z;
+		x[m + n / 2] = xe[m] - z;
 	}
 }
 //逆Fourier变换
-void iFFT(std::complex<double>* v, int n, std::complex<double>* tmp){
-	if (n > 1) return;
-	std::complex<double> z, w, * vo = tmp + n / 2, * ve = tmp;
+void iFFT(std::complex<double>* X, int n, std::complex<double>* tmp){
+	if (n <= 1) return;
+	std::complex<double> z, w,
+		*Xe = tmp,
+		*Xo = tmp + n / 2;
 	for (int k = 0; k < n / 2; k++) {
-		ve[k] = v[2 * k];
-		vo[k] = v[2 * k + 1];
+		Xe[k] = X[2 * k];
+		Xo[k] = X[2 * k + 1];
 	}
-	iFFT(ve, n / 2, v);							//FFT 偶数序列 v[]
-	iFFT(vo, n / 2, v);							//FFT 奇数序列 v[]
+	iFFT(Xe, n / 2, X);							//FFT 偶数序列 X[]
+	iFFT(Xo, n / 2, X);							//FFT 奇数序列 X[]
 	for (int m = 0; m < n / 2; m++) {
-		w.real = cos(2 * PI * m / (double)n);
-		w.imag = sin(2 * PI * m / (double)n);
-		z			 = w * vo[m];
-		v[m]		 = ve[m] + z;
-		v[m + n / 2] = ve[m] - z;
+		w =     cos(2 * PI * m / (double)n)		//W_N^K
+		+ 1i * -sin(2 * PI * m / (double)n);
+		z			 = w * Xo[m];
+		X[m]		 = Xe[m] + z;
+		X[m + n / 2] = Xe[m] - z;
 	}
-}*/
+}
 /*#############################################################################
 
 								积分
@@ -407,6 +434,15 @@ inline double DiffusionEquation	(Mat<>& x, Mat<>& dx, double dt, double A, F&& u
 								插值拟合
 
 #############################################################################*/
+/******************************************************************************
+*					二分法
+******************************************************************************/
+template<typename F>
+double BisectionMethod(double st, double ed, F&& f) {
+	double mid = (st + ed) / 2;
+	if (f(st) * f(ed) > 0 || f(st) * f(mid) == 0 || ed - st < 1E-9) return mid;
+	return f(mid) * f(ed) > 0 ? BisectionMethod(st, mid, f) : BisectionMethod(mid, ed, f);
+}
 /******************************************************************************
 *					样条插值
 *	[算法]: 过求解三弯矩方程组得出曲线函数组的过程
