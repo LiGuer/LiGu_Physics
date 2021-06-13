@@ -25,12 +25,12 @@
 		x.getData(E[0].i2x(i) * dx[0], E[0].i2y(i) * dx[1], E[0].i2z(i) * dx[2]);
 		Electromagnetics(
 			x, dx, 1,
-			[&E, &dx](Mat<>& pos) { int x = pos[0] / dx[0], y = pos[1] / dx[1], z = pos[2] / dx[2]; return (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) ? 0.0 : E[0](x, y, z); },
-			[&E, &dx](Mat<>& pos) { int x = pos[0] / dx[0], y = pos[1] / dx[1], z = pos[2] / dx[2]; return (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) ? 0.0 : E[1](x, y, z); }, 
-			[&E, &dx](Mat<>& pos) { int x = pos[0] / dx[0], y = pos[1] / dx[1], z = pos[2] / dx[2]; return (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) ? 0.0 : E[2](x, y, z); },
-			[&H, &dx](Mat<>& pos) { int x = pos[0] / dx[0], y = pos[1] / dx[1], z = pos[2] / dx[2]; return (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) ? 0.0 : H[0](x, y, z); },
-			[&H, &dx](Mat<>& pos) { int x = pos[0] / dx[0], y = pos[1] / dx[1], z = pos[2] / dx[2]; return (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) ? 0.0 : H[1](x, y, z); },
-			[&H, &dx](Mat<>& pos) { int x = pos[0] / dx[0], y = pos[1] / dx[1], z = pos[2] / dx[2]; return (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) ? 0.0 : H[2](x, y, z); },
+			[&E, &dx](Mat<>& p) { int x = p[0]/dx[0], y = p[1]/dx[1], z = p[2]/dx[2]; return (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) ? 0.0 : E[0](x, y, z); },
+			[&E, &dx](Mat<>& p) { int x = p[0]/dx[0], y = p[1]/dx[1], z = p[2]/dx[2]; return (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) ? 0.0 : E[1](x, y, z); }, 
+			[&E, &dx](Mat<>& p) { int x = p[0]/dx[0], y = p[1]/dx[1], z = p[2]/dx[2]; return (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) ? 0.0 : E[2](x, y, z); },
+			[&H, &dx](Mat<>& p) { int x = p[0]/dx[0], y = p[1]/dx[1], z = p[2]/dx[2]; return (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) ? 0.0 : H[0](x, y, z); },
+			[&H, &dx](Mat<>& p) { int x = p[0]/dx[0], y = p[1]/dx[1], z = p[2]/dx[2]; return (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) ? 0.0 : H[1](x, y, z); },
+			[&H, &dx](Mat<>& p) { int x = p[0]/dx[0], y = p[1]/dx[1], z = p[2]/dx[2]; return (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) ? 0.0 : H[2](x, y, z); },
 		Et, Ht); for (int j = 0; j < Et.size(); j++) Etmp[j][i] = Et[j], Htmp[j][i] = Ht[j];
 	}
 	for (int j = 0; j < 3; j++) E[j] = Etmp[j], H[j] = Htmp[j]; E[2](N / 2, N / 2, N / 2) = sin(t / (2 * PI));
@@ -92,6 +92,33 @@ void Electromagnetics(Mat<>& x, Mat<>& dx, double dt,
 				+ η/ρ▽²\vec v + (ζ + η/3)/ρ·▽(▽·\vec v)
 			η: 粘度    ρ: 密度
 			不可压缩流: ▽·\vec v ≡ 0
+			压强: ▽·▽p = ▽·v·ρ/ dt
+-------------------------------------------------------------------------------
+*	[Example]:
+	const int N = 500, M = 150; double dt = 0.1;
+	Mat<> P(N, M), velocX(N, M), velocY(N, M), velocZ(N, M), velocXTmp(N, M), velocYTmp(N, M),divV(N, M), Ptmp(N, M),
+		  x(3), dx(3), g(3), v(3); dx.fill(1);
+	//......初始化
+	for (int i = 0; i < velocX.size(); i++) {					//Veloc
+		NavierStokesEquations(
+			x.getData(velocX.i2x(i), velocX.i2y(i), 0), dx, dt,
+			[&velocX](Mat<>& x) { return velocX(min(max((int)x[0], 0), N - 1), min(max((int)x[1], 0), M - 1)); },
+			[&velocY](Mat<>& x) { return velocY(min(max((int)x[0], 0), N - 1), min(max((int)x[1], 0), M - 1)); },
+				   [](Mat<>& x) { return 0.0; },
+			     [&P](Mat<>& x) { return P(min(max((int)x[0], 0), N - 1), min(max((int)x[1], 0), M - 1)); },
+		g, v.zero()); velocXTmp[i] = v[0], velocYTmp[i] = v[1];
+	} velocX = velocXTmp; velocY = velocYTmp;
+	for (int i = 0; i < divV.size(); i++)						//Div V
+		divV[i] = Calculus::Div(x.getData(velocX.i2x(i), velocX.i2y(i), 0), dx,
+			[&velocX](Mat<>& x) { return velocX(min(max((int)x[0], 0), N - 1), min(max((int)x[1], 0), M - 1)); },
+			[&velocY](Mat<>& x) { return velocY(min(max((int)x[0], 0), N - 1), min(max((int)x[1], 0), M - 1)); },
+				   [](Mat<>& x) { return 0.0; }
+		);
+	for (int i = 0; i < P.size(); i++) {						//P
+		int x = velocX.i2x(i), y = velocX.i2y(i);
+		if (x >= N - 1 || x < 1 || y >= N - 1 || y < 1) continue;
+		Ptmp[i] = (P(x + 1, y) + P(x - 1, y) + P(x, y + 1) + P(x, y - 1) - divV(x, y) / dt * dx[0] * dx[1]) / 4;
+	} P = Ptmp;
 ******************************************************************************/
 template<typename F1, typename F2, typename F3, typename F4>
 Mat<>& NavierStokesEquations(Mat<>& x, Mat<>& dx, double dt, F1&& vx, F2&& vy, F3&& vz, F4&& p, Mat<>& g, Mat<>& ans,
