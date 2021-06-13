@@ -12,7 +12,7 @@ int main() {
 	std::vector<double> dustX, dustY;
 	{//初始化Water
 		for (int i = 0; i < N * M; i++)
-			if (fabs(velocX.i2x(i) - M / 2) < 20 && fabs(velocX.i2y(i) - M / 2) < 20) velocX[i] = 5;
+			velocX[i] = (fabs(velocX.i2x(i) - M / 2) < 20 && fabs(velocX.i2y(i) - M / 2) < 20) ? 5 : 0;
 		for (int i = 0; i < 100000; i++) 
 			dustX.push_back(rand() / (double)RAND_MAX * 40 + M / 2 - 20),
 			dustY.push_back(rand() / (double)RAND_MAX * 40 + M / 2 - 20);
@@ -36,7 +36,7 @@ int main() {
 			divV[i] = Calculus::Div(x.getData(velocX.i2x(i), velocX.i2y(i), 0), dx,
 				[&velocX](Mat<>& x) { return velocX(min(max((int)x[0], 0), N - 1), min(max((int)x[1], 0), M - 1)); },
 				[&velocY](Mat<>& x) { return velocY(min(max((int)x[0], 0), N - 1), min(max((int)x[1], 0), M - 1)); },
-				[](Mat<>& x) { return 0.0; }
+					   [](Mat<>& x) { return 0.0; }
 			);
 		for (int i = 0; i < P.size(); i++) {
 			int x = velocX.i2x(i),
@@ -56,7 +56,8 @@ int main() {
 			if (Water(x, y) < 50) Water(x, y) += 1;
 		}
 		if (tt++ % 20 == 0) { ttt += 1;
-			char filename[] = "D:/LiGuImg/liguXxxx.ppm"; filename[16] = tt / 100 + '0'; filename[17] = (tt % 100) / 10 + '0'; filename[18] = tt % 10 + '0';
+			char filename[] = "D:/LiGuImg/liguXxxx.ppm"; 
+			filename[16] = tt / 100 + '0'; filename[17] = (tt % 100) / 10 + '0'; filename[18] = tt % 10 + '0';
 			filename[15] = 'V'; G.contour(velocX);G.g.writeImg(filename); G.g.writeImg("D:/LiGu.ppm");
 			filename[15] = 'P'; G.contour(P);	  G.g.writeImg(filename);
 			filename[15] = 'W'; G.contour(Water); G.g.writeImg(filename);
