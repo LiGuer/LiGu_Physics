@@ -69,7 +69,7 @@ namespace Calculus {
 		·精度: O(h^4)
 ******************************************************************************/
 template<typename F>
-double diff(double x0, F&& f, int N = 1,double dx = 1E-3) {
+double diff(double x0, F&& f, int N = 1, double dx = 1E-3) {
 	return N == 0 ? f(x0) :
 		(diff(x0 + dx, f, N - 1) - diff(x0 - dx, f, N - 1)) / (2 * dx);
 }
@@ -259,7 +259,7 @@ double PowOneAdd(double x, double p, int N = 18) {
 		memcpy(X, x, sizeof(complex<double>) * N);
 		Calculus::FFT(X, N, tmp);
 ****************************************************************************** /
-void FFT(std::complex<double>* x, int n, std::complex<double>* tmp) {
+void FFT(std::complex<double>* x, int n) {
 	if (n <= 1) return;
 	std::complex<double> z, w, 
 		*xe = tmp,								//FFT 偶数序列 E[] 
@@ -279,7 +279,7 @@ void FFT(std::complex<double>* x, int n, std::complex<double>* tmp) {
 	}
 }
 //逆Fourier变换
-void iFFT(std::complex<double>* X, int n, std::complex<double>* tmp){
+void iFFT(std::complex<double>* X, int n){
 	if (n <= 1) return;
 	std::complex<double> z, w,
 		*Xe = tmp,
@@ -394,7 +394,7 @@ void RungeKutta(Mat<>& y, double dx, double x0, F&& f, int enpoch = 1) {
 	Mat<> Phi(N, N), x(2), dx(2), St(2), Ed(2); dx.fill(1); Ed.fill(N);
 	for (int i = 0; i < Phi.size(); i++)
 		Phi[i] = Calculus::PoissonEquation(
-			x.getData(Phi.i2x(i), Phi.i2y(i)), dx, St, Ed, [](Mat<>& x) {
+			x.get(Phi.i2x(i), Phi.i2y(i)), dx, St, Ed, [](Mat<>& x) {
 				return sin(x.norm() / (10 * 2 * PI));
 			}
 		);
@@ -421,7 +421,7 @@ double PoissonEquation(Mat<>& x, Mat<>& dx, Mat<>& St, Mat<>& Ed, F&& f) {
 *	[Example]: //波动方程
 		Mat<> u(N, N), u_pre(N, N), x(2), dx(2);  dx.fill(2);
 		for (int i = 0; i < u.size(); i++) {
-			x.getData(u.i2x(i) * dx[0], u.i2y(i) * dx[1]);
+			x.get(u.i2x(i) * dx[0], u.i2y(i) * dx[1]);
 			u_pre[i] = Calculus::WaveEquation( x, dx, 0, 1, 1,
 				[&u, &u_pre, &dx](Mat<>& pos, double t = 0) {
 					int x = pos[0] / dx[0],
@@ -447,13 +447,23 @@ inline double DiffusionEquation	(Mat<>& x, Mat<>& dx, double dt, double A, F&& u
 
 #############################################################################*/
 /******************************************************************************
-*					二分法
+*					Lagrange插值
+	[原理]:
+		f(x) = Σ_(i=1)^n  y_i · f_i(x)
+		f_i(x) = Π_(j=1,i≠j)^n  (x - x_j) / (x_i - x_j)
+		第N点y = 基函数1×第1点y + 基函数2×第2点y + 基函数3×第3点y
+		基函数状态2 = (输入X-第1点x)(输入X-第3点x) / (第2点x-第1点x)(第2点x-第3点x)
 ******************************************************************************/
-template<typename F>
-double BisectionMethod(double st, double ed, F&& f) {
-	double mid = (st + ed) / 2;
-	if (f(st) * f(ed) > 0 || f(st) * f(mid) == 0 || ed - st < 1E-9) return mid;
-	return f(mid) * f(ed) > 0 ? BisectionMethod(st, mid, f) : BisectionMethod(mid, ed, f);
+double LagrangeInterpolation(double x, double* x0, double* y0, int n) {
+	double y = 0, t;
+	for (int i = 0; i < n; i++) {
+		t = y0[i];
+		for (int j = 0; j < n; j++) 
+			if (i != j)
+				t *= (x - x0[j]) / (x0[i] - x0[j]);
+		y += t;
+	}
+	return y;
 }
 /******************************************************************************
 *					样条插值
@@ -461,6 +471,15 @@ double BisectionMethod(double st, double ed, F&& f) {
 ******************************************************************************/
 void CubicSpline(double x, double y) {
 
+}
+/******************************************************************************
+*					二分法
+******************************************************************************/
+template<typename F>
+double BisectionMethod(double st, double ed, F&& f) {
+	double mid = (st + ed) / 2;
+	if (f(st) * f(ed) > 0 || f(st) * f(mid) == 0 || ed - st < 1E-9) return mid;
+	return f(mid) * f(ed) > 0 ? BisectionMethod(st, mid, f) : BisectionMethod(mid, ed, f);
 }
 }
 #endif

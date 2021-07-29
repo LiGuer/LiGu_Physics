@@ -22,7 +22,7 @@
 		E[i].zero(N, N, N); Etmp[i].zero(N, N, N);
 	}
 	for (int i = 0; i < E[0].size(); i++) {
-		x.getData(E[0].i2x(i) * dx[0], E[0].i2y(i) * dx[1], E[0].i2z(i) * dx[2]);
+		x.get(E[0].i2x(i) * dx[0], E[0].i2y(i) * dx[1], E[0].i2z(i) * dx[2]);
 		Electromagnetics(
 			x, dx, 1,
 			[&E, &dx](Mat<>& p) { int x = p[0]/dx[0], y = p[1]/dx[1], z = p[2]/dx[2]; return (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) ? 0.0 : E[0](x, y, z); },
@@ -44,11 +44,11 @@ void Electromagnetics(Mat<>& x, Mat<>& dx, double dt,
 		   t2 = sigmaM * dt / 2 / mu;
 	Mat<> tMat;
 	H_ans.add(
-		H_ans.mul((1 - t2) / (1 + t2), H_ans.alloc(x.rows).getData(Ex(x), Ey(x), Ez(x))),
+		H_ans.mul((1 - t2) / (1 + t2), H_ans.alloc(x.rows).get(Ex(x), Ey(x), Ez(x))),
 		tMat. mul(-dt / mu / (1 + t2), Calculus::Curl(x, dx, Ex, Ey, Ez, tMat))
 	);
 	E_ans.add(
-		E_ans.mul((1 - t1) / (1 + t1), E_ans.alloc(x.rows).getData(Ex(x), Ey(x), Ez(x))), 
+		E_ans.mul((1 - t1) / (1 + t1), E_ans.alloc(x.rows).get(Ex(x), Ey(x), Ez(x))), 
 		tMat. mul( dt / ep / (1 + t1), Calculus::Curl(x, dx, Hx, Hy, Hz, tMat))
 	);
 }
@@ -73,10 +73,10 @@ void Electromagnetics(Mat<>& x, Mat<>& dx, double dt,
 *	[Example]://静电场
 	Mat<> Phi(N, N), x(2), dx(2), St(2), Ed(2); dx.fill(1); Ed.fill(N);
 		for (int i = 0; i < Phi.size(); i++)
-			Phi[i] = Calculus::PoissonEquation( x.getData(Phi.i2x(i), Phi.i2y(i)), dx, St, Ed, [](Mat<>& x) { return sin(x.norm() / (10 * 2 * PI)); });
+			Phi[i] = Calculus::PoissonEquation( x.get(Phi.i2x(i), Phi.i2y(i)), dx, St, Ed, [](Mat<>& x) { return sin(x.norm() / (10 * 2 * PI)); });
 		Mat<> Ex(N, N), Ey(N, N),Et(2);
 		for (int i = 0; i < Phi.size(); i++) {
-			Calculus::Grad(x.getData(Phi.i2x(i), Phi.i2y(i)), dx, [&Phi](Mat<>& _x) {
+			Calculus::Grad(x.get(Phi.i2x(i), Phi.i2y(i)), dx, [&Phi](Mat<>& _x) {
 				int x = _x[0], y = _x[1];
 				x = x >= N ? N - 1 : x; x = x < 0 ? 0 : x;
 				y = y >= N ? N - 1 : y; y = y < 0 ? 0 : y;
@@ -101,7 +101,7 @@ void Electromagnetics(Mat<>& x, Mat<>& dx, double dt,
 	//......初始化
 	for (int i = 0; i < velocX.size(); i++) {					//Veloc
 		NavierStokesEquations(
-			x.getData(velocX.i2x(i), velocX.i2y(i), 0), dx, dt,
+			x.get(velocX.i2x(i), velocX.i2y(i), 0), dx, dt,
 			[&velocX](Mat<>& x) { return velocX(min(max((int)x[0], 0), N - 1), min(max((int)x[1], 0), M - 1)); },
 			[&velocY](Mat<>& x) { return velocY(min(max((int)x[0], 0), N - 1), min(max((int)x[1], 0), M - 1)); },
 				   [](Mat<>& x) { return 0.0; },
@@ -109,7 +109,7 @@ void Electromagnetics(Mat<>& x, Mat<>& dx, double dt,
 		g, v.zero()); velocXTmp[i] = v[0], velocYTmp[i] = v[1];
 	} velocX = velocXTmp; velocY = velocYTmp;
 	for (int i = 0; i < divV.size(); i++)						//Div V
-		divV[i] = Calculus::Div(x.getData(velocX.i2x(i), velocX.i2y(i), 0), dx,
+		divV[i] = Calculus::Div(x.get(velocX.i2x(i), velocX.i2y(i), 0), dx,
 			[&velocX](Mat<>& x) { return velocX(min(max((int)x[0], 0), N - 1), min(max((int)x[1], 0), M - 1)); },
 			[&velocY](Mat<>& x) { return velocY(min(max((int)x[0], 0), N - 1), min(max((int)x[1], 0), M - 1)); },
 				   [](Mat<>& x) { return 0.0; }
@@ -125,12 +125,11 @@ Mat<>& NavierStokesEquations(Mat<>& x, Mat<>& dx, double dt, F1&& vx, F2&& vy, F
 	double density = 1, double viscosity = 1
 ) {
 	(Calculus::Grad(x, dx, p, ans) *= -1 / density) += g;
-	Mat<> vt(x.rows), tmp; vt.getData(vx(x), vy(x), vz(x));
+	Mat<> vt(x.rows), tmp; vt.get(vx(x), vy(x), vz(x));
 	ans[0] += -vt.dot(Calculus::Grad(x, dx, vx, tmp)) + viscosity / density * Calculus::LaplaceOperator(x, dx, vx);
 	ans[1] += -vt.dot(Calculus::Grad(x, dx, vy, tmp)) + viscosity / density * Calculus::LaplaceOperator(x, dx, vy);
 	ans[2] += -vt.dot(Calculus::Grad(x, dx, vz, tmp)) + viscosity / density * Calculus::LaplaceOperator(x, dx, vz);
-	ans.add(vt, (ans *= dt));
-	return ans;
+	return ans.add(vt, (ans *= dt));
 }
 
 /******************************************************************************
@@ -140,14 +139,13 @@ Mat<>& NavierStokesEquations(Mat<>& x, Mat<>& dx, double dt, F1&& vx, F2&& vy, F
 			∂u_x/∂t + v_x·∂v_x/∂x+ v_y·∂v_x/∂y + v_z·∂v_x/∂z = - 1/ρ·∂p/∂x + g_x
 ******************************************************************************/
 template<typename F1, typename F2, typename F3, typename F4>
-Mat<>& Eular(Mat<>& x, Mat<>& dx, double dt, double density, F1&& vx, F2&& vy, F3&& vz, F4&& p, Mat<>& g, Mat<>& ans) {
+Mat<>& Eular(Mat<>& x, Mat<>& dx, double dt, F1&& vx, F2&& vy, F3&& vz, F4&& p, Mat<>& g, Mat<>& ans, double density = 1) {
 	(Calculus::Grad(x, dx, p, ans) *= -1 / density) += g;
-	Mat<> vt(x.rows), tmp; vt.getData(vx(x), vy(x), vz(x));
+	Mat<> vt(x.rows), tmp; vt.get(vx(x), vy(x), vz(x));
 	ans[0] += -vt.dot(Calculus::Grad(x, dx, vx, tmp));
 	ans[1] += -vt.dot(Calculus::Grad(x, dx, vy, tmp));
 	ans[2] += -vt.dot(Calculus::Grad(x, dx, vz, tmp));
-	ans.add(vt, (ans *= dt));
-	return ans;
+	return ans.add(vt, (ans *= dt));
 }
 
 
